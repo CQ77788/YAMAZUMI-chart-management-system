@@ -41,7 +41,7 @@ The YAMAZUMI Management application is a Flask-based web application that helps 
 4. Configure the build:
    - Environment: Python
    - Build Command: `pip install -r requirements.txt`
-   - Start Command: `gunicorn server:app`
+   - Start Command: `gunicorn wsgi:app`
 5. Set environment variables if needed
 6. Deploy
 
