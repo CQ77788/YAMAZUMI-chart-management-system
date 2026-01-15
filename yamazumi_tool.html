@@ -1,0 +1,2931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yamazumi Process Modeling Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
+    <script src="lib/chart.umd.min.js"></script>
+    <script src="lib/chartjs-plugin-datalabels.min.js"></script>
+    <script src="lib/xlsx.full.min.js"></script>
+    <script src="data.js"></script>
+    
+    <!-- 内联数据区 -->
+    <script>
+        let yamazumiData = {
+            "basic_info": {
+                "prepared_by": "Chris Coles",
+                "process_name": "Build Process",
+                "process_type": "Product",
+                "measurement_method": "Measurement Method:",
+                "time_unit": "secs",
+                "takt_time": "Takt Time",
+                "total_cycle_time": 0
+            },
+            "process_data": [
+                {"task_name": "Warm pressing machine", "work_type_desc": "Waste - Warm pressing machine", "work_type": "Waste", "times": {"Setup Parts": 5}, "total_time": 5},
+                {"task_name": "Clean press tool", "work_type_desc": "NVA - Clean press tool", "work_type": "NVA", "times": {"Setup Parts": 10}, "total_time": 10},
+                {"task_name": "Setup next pressings", "work_type_desc": "NVA - Setup next pressings", "work_type": "NVA", "times": {"Setup Parts": 5}, "total_time": 5},
+                {"task_name": "Align rivnuts", "work_type_desc": "NVA - Align rivnuts", "work_type": "NVA", "times": {"Setup Parts": 9}, "total_time": 9},
+                {"task_name": "Align studs", "work_type_desc": "NVA - Align studs", "work_type": "NVA", "times": {"Setup Parts": 9}, "total_time": 9},
+                {"task_name": "Load plate", "work_type_desc": "VA - Load plate", "work_type": "VA", "times": {"Setup Parts": 10}, "total_time": 10},
+                {"task_name": "Activate press", "work_type_desc": "VA - Activate press", "work_type": "VA", "times": {"Produce Parts": 6}, "total_time": 6},
+                {"task_name": "Deactivate press", "work_type_desc": "NVA - Deactivate press", "work_type": "NVA", "times": {"Produce Parts": 9}, "total_time": 9},
+                {"task_name": "Remove plate", "work_type_desc": "VA - Remove plate", "work_type": "VA", "times": {"Produce Parts": 8}, "total_time": 8},
+                {"task_name": "Inspect plate", "work_type_desc": "VA - Inspect plate", "work_type": "VA", "times": {"Produce Parts": 7}, "total_time": 7},
+                {"task_name": "Package plate", "work_type_desc": "VA - Package plate", "work_type": "VA", "times": {"Produce Parts": 10}, "total_time": 10},
+                {"task_name": "Buff surface", "work_type_desc": "VA - Buff surface", "work_type": "VA", "times": {"Buff Three Parts": 23}, "total_time": 23},
+                {"task_name": "Mount front wheel", "work_type_desc": "VA - Mount front wheel", "work_type": "VA", "times": {"Mount Wheels": 21}, "total_time": 21},
+                {"task_name": "Mount rear wheel", "work_type_desc": "VA - Mount rear wheel", "work_type": "VA", "times": {"Mount Wheels": 21}, "total_time": 21},
+                {"task_name": "Attach left bracket", "work_type_desc": "VA - Attach left bracket", "work_type": "VA", "times": {"Attach Bracket": 30}, "total_time": 30},
+                {"task_name": "Attach right bracket", "work_type_desc": "VA - Attach right bracket", "work_type": "VA", "times": {"Attach Bracket": 31}, "total_time": 31},
+                {"task_name": "Assemble gear 1", "work_type_desc": "VA - Assemble gear 1", "work_type": "VA", "times": {"Gear Assembly": 24}, "total_time": 24},
+                {"task_name": "Assemble gear 2", "work_type_desc": "VA - Assemble gear 2", "work_type": "VA", "times": {"Gear Assembly": 25}, "total_time": 25},
+                {"task_name": "Assemble main shaft", "work_type_desc": "VA - Assemble main shaft", "work_type": "VA", "times": {" Shaft Assembly": 28}, "total_time": 28},
+                {"task_name": "Assemble secondary shaft", "work_type_desc": "VA - Assemble secondary shaft", "work_type": "VA", "times": {" Shaft Assembly": 28}, "total_time": 28}
+            ],
+            "stations": ["Setup Parts", "Produce Parts", "Buff Three Parts", "Mount Wheels", "Attach Bracket", "Gear Assembly", " Shaft Assembly"],
+            "work_type_stats": {
+                "Waste": {"count": 6, "total_time": 43},
+                "NVA": {"count": 13, "total_time": 109},
+                "VA": {"count": 23, "total_time": 167},
+                "<Select>": {"count": 18, "total_time": 0}
+            },
+            "station_stats": {
+                "Setup Parts": 48,
+                "Produce Parts": 40,
+                "Buff Three Parts": 23,
+                "Mount Wheels": 42,
+                "Attach Bracket": 61,
+                "Gear Assembly": 49,
+                " Shaft Assembly": 56
+            }
+        };
+
+        // 工作类型颜色映射
+        const workTypeColors = {
+            "VA": "#10B981", // 绿色 - 增值
+            "NVA": "#F59E0B", // 黄色 - 非增值
+            "Waste": "#EF4444", // 红色 - 浪费
+            "<Select>": "#6B7280" // 灰色 - 未分类
+        };
+
+        // 当前选中的station，null表示显示所有
+        let selectedStation = null;
+
+        // 保存原始状态，用于取消自动平衡
+        let originalProcessData = null;
+        let originalStationStats = null;
+
+        // 从URL参数获取工厂、工艺段和工艺名称
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            return {
+                factory: params.get('factory') || '',
+                section: params.get('section') || '',
+                process: params.get('process') || 'Build Process'
+            };
+        }
+
+        let currentUser = null;
+
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/me');
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentUser = result.user;
+                    document.getElementById('userInfo').classList.remove('hidden');
+                    document.getElementById('usernameDisplay').textContent = currentUser.username;
+                } else {
+                    window.location.href = 'login.html';
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                window.location.href = 'login.html';
+            }
+        }
+
+        async function logout() {
+            try {
+                await fetch('/api/logout', { method: 'POST' });
+                window.location.href = 'login.html';
+            } catch (error) {
+                console.error('Logout failed:', error);
+            }
+        }
+
+        async function loadSectionData() {
+            try {
+                const response = await fetch(`/api/factories/${encodeURIComponent(currentFactory)}/sections`);
+                const result = await response.json();
+                
+                if (result.success && result.sections) {
+                    const sectionData = result.sections.find(s => s.name === currentSection);
+                    if (sectionData) {
+                        yamazumiData.process_data = JSON.parse(sectionData.process_data || '[]');
+                        yamazumiData.stations = JSON.parse(sectionData.stations || '[]');
+                        yamazumiData.basic_info.process_name = sectionData.process_name || currentSection;
+                        yamazumiData.basic_info.process_type = sectionData.process_type || 'Product';
+                        yamazumiData.basic_info.measurement_method = sectionData.measurement_method || 'Measurement Method:';
+                        yamazumiData.basic_info.time_unit = sectionData.time_unit || 'secs';
+                        yamazumiData.basic_info.takt_time = sectionData.takt_time || 'Takt Time';
+                        yamazumiData.basic_info.prepared_by = sectionData.prepared_by || 'Chris Coles';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading section data:', error);
+            }
+        }
+
+        async function saveSectionData() {
+            try {
+                const response = await fetch(`/api/sections/${encodeURIComponent(currentSection)}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        factory: currentFactory,
+                        name: currentSection,
+                        process_name: yamazumiData.basic_info.process_name,
+                        process_type: yamazumiData.basic_info.process_type,
+                        measurement_method: yamazumiData.basic_info.measurement_method,
+                        time_unit: yamazumiData.basic_info.time_unit,
+                        takt_time: yamazumiData.basic_info.takt_time,
+                        prepared_by: yamazumiData.basic_info.prepared_by,
+                        process_data: yamazumiData.process_data,
+                        stations: yamazumiData.stations
+                    })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log('Data saved successfully');
+                    alert('Data saved successfully!');
+                } else {
+                    console.error('Failed to save data:', result.message);
+                    alert('Failed to save data: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error saving data:', error);
+                alert('Error saving data: ' + error.message);
+            }
+        }
+
+        // 当前选择的工厂和工艺段
+        let currentFactory = '';
+        let currentSection = '';
+        let currentProcess = '';
+    </script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="flex justify-end px-4 py-4">
+        <div id="userInfo" class="hidden z-50">
+            <div class="relative group">
+                <button class="flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-sm hover:shadow-md transition-all text-gray-700 text-sm">
+                    <i class="fas fa-user-circle text-blue-500 text-lg"></i>
+                    <span id="usernameDisplay" class="font-medium"></span>
+                    <i class="fas fa-chevron-down text-xs text-gray-400"></i>
+                </button>
+                <div class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                    <div class="py-1">
+                        <button onclick="logout()" class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 flex items-center gap-2">
+                            <i class="fas fa-sign-out-alt text-gray-400"></i>
+                            Logout
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 导航栏 -->
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-chart-bar text-blue-600 text-2xl mr-3"></i>
+                    <div>
+                        <h1 class="text-xl font-semibold text-gray-900">Yamazumi Process Modeling Tool</h1>
+                        <p id="breadcrumb" class="text-sm text-gray-600"></p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="backBtn" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors">
+                        <i class="fas fa-arrow-left mr-2"></i>Back
+                    </button>
+                    <button id="saveBtn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-save mr-2"></i>Save
+                    </button>
+                    <button id="exportBtn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
+                        <i class="fas fa-file-export mr-2"></i>Export
+                    </button>
+                    <button id="importBtn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+                        <i class="fas fa-file-import mr-2"></i>Import
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <input type="file" id="importFileInput" accept=".xlsx,.xls,.csv" style="display: none;">
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- 图表区域 -->
+        <div class="grid grid-cols-1 gap-8 mb-8">
+            <!-- Yamazumi Chart -->
+            <div class="bg-white rounded-lg shadow-sm border">
+                <div class="px-6 py-4 border-b">
+                    <h2 class="text-lg font-semibold text-gray-900">
+                        <i class="fas fa-chart-column text-green-600 mr-2"></i>Yamazumi Chart
+                    </h2>
+                </div>
+                <div class="p-6">
+                    <div class="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">TT (Takt Time)</label>
+                            <input type="number" id="ttInput" step="0.01" placeholder="Enter TT value"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">OEE (Overall Equipment Effectiveness)</label>
+                            <input type="number" id="oeeInput" step="0.01" placeholder="Enter OEE value (0-1)"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                    </div>
+                    <div style="height: 400px;">
+                        <canvas id="yamazumiChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Yamazumi Chart (modify) -->
+            <div class="bg-white rounded-lg shadow-sm border">
+                <div class="px-6 py-4 border-b">
+                    <h2 class="text-lg font-semibold text-gray-900">
+                        <i class="fas fa-chart-column text-blue-600 mr-2"></i>Yamazumi Chart (modify)
+                    </h2>
+                    <p class="text-sm text-gray-600 mt-1">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Click a task to select it, then click another station to move it there
+                    </p>
+                </div>
+                <div class="p-6">
+                    <div style="height: 400px;">
+                        <canvas id="yamazumiChartModify"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Yamazumi Chart (modify2) -->
+            <div class="bg-white rounded-lg shadow-sm border">
+                <div class="px-6 py-4 border-b flex justify-between items-center">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-900">
+                            <i class="fas fa-chart-column text-blue-600 mr-2"></i>Yamazumi Chart (modify2)
+                        </h2>
+                        <p class="text-sm text-gray-600 mt-1">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Click a task to select it, then click another station to move it there
+                        </p>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="autoLineBalance()" class="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 transition-colors">
+                            <i class="fas fa-balance-scale mr-2"></i>Auto Line Balance
+                        </button>
+                        <button onclick="cancelAutoLineBalance()" class="bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700 transition-colors">
+                            <i class="fas fa-undo mr-2"></i>Cancel Auto Line Balance
+                        </button>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <div style="height: 400px;">
+                        <canvas id="yamazumiChartModify2"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Work Type Distribution -->
+            <div class="bg-white rounded-lg shadow-sm border">
+                <div class="px-6 py-4 border-b flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-900">
+                        <i class="fas fa-chart-pie text-purple-600 mr-2"></i>Work Type Distribution
+                    </h2>
+                    <button id="resetStationBtn" onclick="resetStationSelection()" class="hidden px-3 py-1 bg-gray-200 text-gray-700 rounded-md text-sm hover:bg-gray-300 transition-colors">
+                        <i class="fas fa-times mr-1"></i>Reset
+                    </button>
+                </div>
+                <div id="selectedStationInfo" class="px-6 py-2 bg-blue-50 border-b hidden">
+                    <p class="text-sm text-blue-700">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Showing work type distribution for: <strong id="selectedStationName"></strong>
+                    </p>
+                </div>
+                <div class="p-6">
+                    <div style="height: 400px;">
+                        <canvas id="workTypeChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Station管理区域 -->
+        <div class="bg-white rounded-lg shadow-sm border mb-8">
+            <div class="px-6 py-4 border-b flex justify-between items-center">
+                <h2 class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-industry text-blue-600 mr-2"></i>Station Management
+                </h2>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div>
+                        <h3 class="text-sm font-medium text-gray-700 mb-3">Add New Station</h3>
+                        <div class="flex space-x-2">
+                            <input type="text" id="newStationName" placeholder="Enter station name"
+                                   class="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <button onclick="addStation()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
+                                <i class="fas fa-plus"></i> Add
+                            </button>
+                        </div>
+                    </div>
+                    <div class="lg:col-span-2">
+                        <h3 class="text-sm font-medium text-gray-700 mb-3">Existing Stations</h3>
+                        <div id="stationsList" class="flex flex-wrap gap-2">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数据表格区域 -->
+        <div class="bg-white rounded-lg shadow-sm border">
+                <div class="px-6 py-4 border-b flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-900">
+                        <i class="fas fa-table text-indigo-600 mr-2"></i>Process Steps
+                    </h2>
+                    <div class="flex space-x-2">
+                        <button onclick="openTaskModal()" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
+                            <i class="fas fa-plus mr-2"></i>Add New Task
+                        </button>
+                    </div>
+                </div>
+                <div class="px-6 py-4 border-b flex justify-between items-center">
+                    <div class="flex space-x-2">
+                        <input type="text" id="filterTaskName" placeholder="Filter Task Name..."
+                               class="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <select id="filterWorkType"
+                                class="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">All Work Types</option>
+                            <option value="VA">VA</option>
+                            <option value="NVA">NVA</option>
+                            <option value="Waste">Waste</option>
+                        </select>
+                        <select id="filterStation"
+                                class="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">All Stations</option>
+                        </select>
+                        <select id="filterTime"
+                                class="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">All Times</option>
+                            <option value="0-10">0-10s</option>
+                            <option value="11-20">11-20s</option>
+                            <option value="21-30">21-30s</option>
+                            <option value="31+">31s+</option>
+                        </select>
+                        <button id="clearFilters" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-md text-sm hover:bg-gray-300">
+                            Clear All
+                        </button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Index</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Work Type</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Station</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time (s)</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Comments</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tasksTable" class="bg-white divide-y divide-gray-200">
+                            <!-- 表格内容将通过JavaScript动态生成 -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="px-6 py-4 border-t">
+                    <div class="flex justify-between items-center">
+                        <div class="text-sm text-gray-700">
+                            Showing <span id="showingCount">20</span> of <span id="totalCount">60</span> tasks
+                        </div>
+                        <div class="flex space-x-2">
+                            <button id="prevPage" class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50 disabled:opacity-50" disabled>
+                                Previous
+                            </button>
+                            <button id="nextPage" class="px-3 py-1 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数据分析总结 -->
+        <div class="bg-white rounded-lg shadow-sm border mt-8">
+            <div class="px-6 py-4 border-b">
+                <h2 class="text-lg font-semibold text-gray-900">
+                    <i class="fas fa-chart-line text-red-600 mr-2"></i>Process Analysis Summary
+                </h2>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                    <div class="bg-green-50 p-4 rounded-lg border border-green-200">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-green-100 rounded-full">
+                                <i class="fas fa-check-circle text-green-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-green-700">Value Added</p>
+                                <p class="text-2xl font-semibold text-green-900">167s</p>
+                                <p class="text-xs text-green-600">23 tasks</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-yellow-100 rounded-full">
+                                <i class="fas fa-exclamation-triangle text-yellow-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-yellow-700">Non-Value Added</p>
+                                <p class="text-2xl font-semibold text-yellow-900">109s</p>
+                                <p class="text-xs text-yellow-600">13 tasks</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-red-100 rounded-full">
+                                <i class="fas fa-times-circle text-red-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-red-700">Waste</p>
+                                <p class="text-2xl font-semibold text-red-900">43s</p>
+                                <p class="text-xs text-red-600">6 tasks</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <div class="flex items-center">
+                            <div class="p-2 bg-blue-100 rounded-full">
+                                <i class="fas fa-clock text-blue-600"></i>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-blue-700">Total Cycle Time</p>
+                                <p class="text-2xl font-semibold text-blue-900">319s</p>
+                                <p class="text-xs text-blue-600">~5.3 minutes</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-md font-semibold text-gray-900 mb-3">Key Insights</h3>
+                    <ul class="space-y-2 text-sm text-gray-700">
+                        <li class="flex items-start">
+                            <i class="fas fa-arrow-right text-blue-600 mt-1 mr-2 text-xs"></i>
+                            <span><strong>VA Ratio:</strong> 52.4% of total time is value-added, which is reasonable but can be improved.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-arrow-right text-blue-600 mt-1 mr-2 text-xs"></i>
+                            <span><strong>Opportunity Areas:</strong> Focus on reducing NVA (34.2%) and Waste (13.5%) activities.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-arrow-right text-blue-600 mt-1 mr-2 text-xs"></i>
+                            <span><strong>Bottleneck:</strong> Attach Bracket station has the highest time (61s), consider optimizing this step.</span>
+                        </li>
+                        <li class="flex items-start">
+                            <i class="fas fa-arrow-right text-blue-600 mt-1 mr-2 text-xs"></i>
+                            <span><strong>Balance:</strong> Station times vary between 23s-61s, suggesting potential for line balancing.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', async function() {
+            const params = getUrlParams();
+            currentFactory = params.factory || 'Factory A';
+            currentSection = params.section || 'Process Section 1';
+            currentProcess = params.process || 'Build Process';
+            
+            // 从数据库加载数据
+            await loadSectionData();
+            
+            // 如果数据库中没有数据，尝试从localStorage加载
+            if (!yamazumiData.process_data || yamazumiData.process_data.length === 0) {
+                const storageKey = `yamazumi_${currentFactory}_${currentSection}`;
+                const savedData = localStorage.getItem(storageKey);
+                
+                if (savedData) {
+                    const sectionData = JSON.parse(savedData);
+                    yamazumiData = {
+                        "basic_info": {
+                            "prepared_by": sectionData.prepared_by,
+                            "process_name": sectionData.process_name,
+                            "process_type": sectionData.process_type,
+                            "measurement_method": sectionData.measurement_method,
+                            "time_unit": sectionData.time_unit,
+                            "takt_time": sectionData.takt_time,
+                            "total_cycle_time": 0
+                        },
+                        "process_data": sectionData.process_data,
+                        "stations": sectionData.stations,
+                        "work_type_stats": {},
+                        "station_stats": {}
+                    };
+                }
+            }
+            
+            updateBreadcrumb();
+            updateStatistics();
+            initializePage();
+            
+            const ttStorageKey = `yamazumi_tt_${currentFactory}_${currentSection}`;
+            const oeeStorageKey = `yamazumi_oee_${currentFactory}_${currentSection}`;
+            
+            const savedTT = localStorage.getItem(ttStorageKey);
+            const savedOEE = localStorage.getItem(oeeStorageKey);
+            
+            if (savedTT) {
+                document.getElementById('ttInput').value = savedTT;
+            }
+            if (savedOEE) {
+                document.getElementById('oeeInput').value = savedOEE;
+            }
+            
+            createCharts();
+            
+            document.getElementById('taskForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const taskName = document.getElementById('taskName').value;
+                const workType = document.getElementById('workType').value;
+                const station = document.getElementById('station').value;
+                const time = parseInt(document.getElementById('taskTime').value);
+                const comments = document.getElementById('taskComments').value;
+                
+                if (editingTaskIndex !== null) {
+                    const task = yamazumiData.process_data[editingTaskIndex];
+                    task.task_name = taskName;
+                    task.work_type = workType;
+                    task.work_type_desc = `${workType} - ${taskName}`;
+                    task.times = {};
+                    task.times[station] = time;
+                    task.total_time = time;
+                    task.comments = comments;
+                } else {
+                    const newTask = {
+                        task_name: taskName,
+                        work_type: workType,
+                        work_type_desc: `${workType} - ${taskName}`,
+                        times: {},
+                        total_time: 0,
+                        comments: comments
+                    };
+                    newTask.times[station] = time;
+                    newTask.total_time = time;
+                    yamazumiData.process_data.push(newTask);
+                }
+                
+                // 保存到数据库
+                saveSectionData();
+                
+                saveToLocalStorage();
+                updateStatistics();
+                renderTasksTable(yamazumiData.process_data);
+                createCharts();
+                closeTaskModal();
+                
+                if (editingTaskIndex !== null) {
+                    alert('Task updated successfully!');
+                } else {
+                    alert('Task added successfully!');
+                }
+            });
+
+            document.getElementById('editStationForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const newName = document.getElementById('newStationNameEdit').value.trim();
+                const oldName = yamazumiData.stations[editingStationIndex];
+                
+                if (!newName) {
+                    alert('Station name cannot be empty');
+                    return;
+                }
+                
+                if (newName === oldName) {
+                    closeEditStationModal();
+                    return;
+                }
+                
+                if (yamazumiData.stations.includes(newName)) {
+                    alert('This station name already exists');
+                    return;
+                }
+                
+                yamazumiData.stations[editingStationIndex] = newName;
+                
+                yamazumiData.station_stats[newName] = yamazumiData.station_stats[oldName] || 0;
+                delete yamazumiData.station_stats[oldName];
+                
+                yamazumiData.process_data.forEach(task => {
+                    if (task.times[oldName]) {
+                        task.times[newName] = task.times[oldName];
+                        delete task.times[oldName];
+                    }
+                });
+                
+                if (selectedStation === oldName) {
+                    selectedStation = newName;
+                }
+                
+                // 保存到数据库
+                saveSectionData();
+                
+                saveToLocalStorage();
+                updateStatistics();
+                updateStationSelect();
+                renderStationsList();
+                filterTasks();
+                createCharts();
+                closeEditStationModal();
+                
+                alert('Station updated successfully!');
+            });
+
+            document.getElementById('mergeTaskForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                mergeTasks();
+            });
+        });
+
+        function updateBreadcrumb() {
+            const breadcrumb = document.getElementById('breadcrumb');
+            if (currentFactory && currentSection) {
+                breadcrumb.textContent = `${currentFactory} > ${currentSection}`;
+            } else {
+                breadcrumb.textContent = currentProcess;
+            }
+        }
+
+        function initializePage() {
+            renderTasksTable(yamazumiData.process_data);
+            renderStationsList();
+            updateStationSelect();
+            
+            document.getElementById('filterTaskName').addEventListener('input', filterTasks);
+            document.getElementById('filterWorkType').addEventListener('change', filterTasks);
+            document.getElementById('filterStation').addEventListener('change', filterTasks);
+            document.getElementById('filterTime').addEventListener('change', filterTasks);
+            document.getElementById('clearFilters').addEventListener('click', clearAllFilters);
+            
+            document.getElementById('backBtn').addEventListener('click', function() {
+                window.location.href = 'index.html';
+            });
+            
+            document.getElementById('saveBtn').addEventListener('click', saveSectionData);
+            document.getElementById('exportBtn').addEventListener('click', exportData);
+            document.getElementById('importBtn').addEventListener('click', importData);
+            document.getElementById('importFileInput').addEventListener('change', handleFileImport);
+            
+            checkAuth();
+            loadSectionData();
+            
+            document.getElementById('ttInput').addEventListener('input', function() {
+                createYamazumiChart();
+                createYamazumiChartModify();
+                createYamazumiChartModify2();
+            });
+            document.getElementById('oeeInput').addEventListener('input', function() {
+                createYamazumiChart();
+                createYamazumiChartModify();
+                createYamazumiChartModify2();
+            });
+        }
+
+        let draggedRow = null;
+        let draggedIndex = null;
+
+        function handleDragStart(e) {
+            draggedRow = this;
+            draggedIndex = parseInt(this.dataset.index);
+            this.style.opacity = '0.5';
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+
+            const targetRow = this;
+            const targetIndex = parseInt(targetRow.dataset.index);
+
+            if (draggedIndex !== null && draggedIndex !== targetIndex) {
+                const draggedTask = yamazumiData.process_data[draggedIndex];
+                
+                yamazumiData.process_data.splice(draggedIndex, 1);
+                yamazumiData.process_data.splice(targetIndex, 0, draggedTask);
+                
+                saveToLocalStorage();
+                updateStatistics();
+                createYamazumiChart();
+                createYamazumiChartModify();
+                createYamazumiChartModify2();
+                
+                const currentTasks = getCurrentFilteredTasks();
+                renderTasksTable(currentTasks);
+            }
+
+            return false;
+        }
+
+        function handleDragEnd(e) {
+            this.style.opacity = '1';
+            
+            const rows = document.querySelectorAll('#tasksTable tr');
+            rows.forEach(row => {
+                row.classList.remove('drag-over');
+            });
+        }
+
+        let draggedStationIndex = null;
+
+        function handleStationDragStart(e) {
+            draggedStationIndex = parseInt(this.dataset.index);
+            this.style.opacity = '0.5';
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+        }
+
+        function handleStationDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+
+        function handleStationDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+
+            const targetIndex = parseInt(this.dataset.index);
+
+            if (draggedStationIndex !== null && draggedStationIndex !== targetIndex) {
+                const draggedStation = yamazumiData.stations[draggedStationIndex];
+                
+                yamazumiData.stations.splice(draggedStationIndex, 1);
+                yamazumiData.stations.splice(targetIndex, 0, draggedStation);
+                
+                const newStationStats = {};
+                yamazumiData.stations.forEach(station => {
+                    newStationStats[station] = yamazumiData.station_stats[station] || 0;
+                });
+                yamazumiData.station_stats = newStationStats;
+                
+                saveToLocalStorage();
+                updateStatistics();
+                createYamazumiChart();
+                createYamazumiChartModify();
+                createYamazumiChartModify2();
+                updateStationSelect();
+                renderStationsList();
+            }
+
+            return false;
+        }
+
+        function handleStationDragEnd(e) {
+            this.style.opacity = '1';
+            
+            const stationCards = document.querySelectorAll('#stationsList > div');
+            stationCards.forEach(card => {
+                card.classList.remove('drag-over');
+            });
+        }
+
+        function getCurrentFilteredTasks() {
+            const taskNameFilter = document.getElementById('filterTaskName').value.toLowerCase();
+            const workTypeFilter = document.getElementById('filterWorkType').value;
+            const stationFilter = document.getElementById('filterStation').value;
+            const timeFilter = document.getElementById('filterTime').value;
+            
+            return yamazumiData.process_data.filter(task => {
+                const firstStation = Object.keys(task.times)[0] || '';
+                const firstTime = Object.values(task.times)[0] || 0;
+                
+                const matchesTaskName = taskNameFilter === '' || task.task_name.toLowerCase().includes(taskNameFilter);
+                const matchesWorkType = workTypeFilter === '' || task.work_type === workTypeFilter;
+                const matchesStation = stationFilter === '' || firstStation === stationFilter;
+                
+                let matchesTime = true;
+                if (timeFilter !== '') {
+                    if (timeFilter === '0-10') {
+                        matchesTime = firstTime >= 0 && firstTime <= 10;
+                    } else if (timeFilter === '11-20') {
+                        matchesTime = firstTime >= 11 && firstTime <= 20;
+                    } else if (timeFilter === '21-30') {
+                        matchesTime = firstTime >= 21 && firstTime <= 30;
+                    } else if (timeFilter === '31+') {
+                        matchesTime = firstTime >= 31;
+                    }
+                }
+                
+                return matchesTaskName && matchesWorkType && matchesStation && matchesTime;
+            });
+        }
+
+        function renderTasksTable(tasks) {
+            const tableBody = document.getElementById('tasksTable');
+            tableBody.innerHTML = '';
+            
+            tasks.forEach((task, index) => {
+                const originalIndex = yamazumiData.process_data.indexOf(task);
+                
+                const firstStation = Object.keys(task.times)[0] || 'N/A';
+                const firstTime = Object.values(task.times)[0] || 0;
+                
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50 transition-colors cursor-move';
+                row.draggable = true;
+                row.dataset.index = originalIndex;
+                
+                let badgeClass = '';
+                switch(task.work_type) {
+                    case 'VA': badgeClass = 'bg-green-100 text-green-800'; break;
+                    case 'NVA': badgeClass = 'bg-yellow-100 text-yellow-800'; break;
+                    case 'Waste': badgeClass = 'bg-red-100 text-red-800'; break;
+                    default: badgeClass = 'bg-gray-100 text-gray-800';
+                }
+                
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <i class="fas fa-grip-vertical text-gray-400 mr-2"></i>${originalIndex + 1}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${task.task_name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${badgeClass}">
+                            ${task.work_type}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${firstStation}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${firstTime}</td>
+                    <td class="px-6 py-4 text-sm text-gray-900 max-w-xs truncate" title="${task.comments || ''}">${task.comments || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button onclick="editTask(${originalIndex})" class="text-blue-600 hover:text-blue-900 mr-3">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button onclick="deleteTask(${originalIndex})" class="text-red-600 hover:text-red-900">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </td>
+                `;
+                
+                row.addEventListener('dragstart', handleDragStart);
+                row.addEventListener('dragover', handleDragOver);
+                row.addEventListener('drop', handleDrop);
+                row.addEventListener('dragend', handleDragEnd);
+                
+                tableBody.appendChild(row);
+            });
+            
+            document.getElementById('showingCount').textContent = tasks.length;
+            document.getElementById('totalCount').textContent = yamazumiData.process_data.length;
+        }
+
+        function filterTasks() {
+            const filteredTasks = getCurrentFilteredTasks();
+            renderTasksTable(filteredTasks);
+        }
+
+        function clearAllFilters() {
+            document.getElementById('filterTaskName').value = '';
+            document.getElementById('filterWorkType').value = '';
+            document.getElementById('filterStation').value = '';
+            document.getElementById('filterTime').value = '';
+            filterTasks();
+        }
+
+        function editTask(index) {
+            openTaskModal(index);
+        }
+
+        function deleteTask(index) {
+            if (confirm('Are you sure you want to delete this task?')) {
+                yamazumiData.process_data.splice(index, 1);
+                
+                // 保存到数据库
+                saveSectionData();
+                
+                // 保存到本地存储
+                saveToLocalStorage();
+                
+                // 更新统计数据
+                updateStatistics();
+                
+                // 重新渲染表格和图表
+                filterTasks();
+                createCharts();
+            }
+        }
+
+        function updateStatistics() {
+            // 重置统计数据
+            yamazumiData.work_type_stats = {
+                "VA": {"count": 0, "total_time": 0},
+                "NVA": {"count": 0, "total_time": 0},
+                "Waste": {"count": 0, "total_time": 0},
+                "<Select>": {"count": 0, "total_time": 0}
+            };
+            
+            yamazumiData.station_stats = {};
+            yamazumiData.stations.forEach(station => {
+                yamazumiData.station_stats[station] = 0;
+            });
+            
+            // 重新计算统计数据
+            yamazumiData.process_data.forEach(task => {
+                // 更新工作类型统计
+                if (yamazumiData.work_type_stats[task.work_type]) {
+                    yamazumiData.work_type_stats[task.work_type].count++;
+                    yamazumiData.work_type_stats[task.work_type].total_time += task.total_time;
+                }
+                
+                // 更新工作站统计
+                Object.entries(task.times).forEach(([station, time]) => {
+                    if (yamazumiData.station_stats[station] !== undefined) {
+                        yamazumiData.station_stats[station] += time;
+                    }
+                });
+            });
+        }
+
+        function exportData() {
+            let csvContent = "Task Name,Work Type,Station,Time (seconds),Comments\n";
+            
+            yamazumiData.process_data.forEach(task => {
+                Object.entries(task.times).forEach(([station, time]) => {
+                    csvContent += `"${task.task_name}","${task.work_type}","${station}",${time},"${task.comments || ''}"\n`;
+                });
+            });
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            let filename = 'yamazumi_data.csv';
+            if (currentFactory && currentSection) {
+                filename = `${currentFactory}_${currentSection}_data.csv`;
+            }
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            alert('Data exported successfully!');
+        }
+
+        function importData() {
+            const fileInput = document.getElementById('importFileInput');
+            fileInput.click();
+        }
+
+        function handleFileImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    
+                    if (jsonData.length < 2) {
+                        alert('File is empty or invalid format');
+                        return;
+                    }
+
+                    const headers = jsonData[0];
+                    const rows = jsonData.slice(1);
+                    
+                    const taskNameIndex = headers.findIndex(h => h && h.toLowerCase().includes('task'));
+                    const workTypeIndex = headers.findIndex(h => h && h.toLowerCase().includes('work type'));
+                    const stationIndex = headers.findIndex(h => h && h.toLowerCase().includes('station'));
+                    const timeIndex = headers.findIndex(h => h && h.toLowerCase().includes('time'));
+                    const commentsIndex = headers.findIndex(h => h && h.toLowerCase().includes('comment'));
+
+                    if (taskNameIndex === -1 || workTypeIndex === -1 || stationIndex === -1 || timeIndex === -1) {
+                        alert('Invalid file format. Required columns: Task Name, Work Type, Station, Time');
+                        return;
+                    }
+
+                    const importedTasks = [];
+                    const importedStations = new Set();
+
+                    rows.forEach(row => {
+                        if (!row[taskNameIndex]) return;
+
+                        const taskName = row[taskNameIndex];
+                        const workType = row[workTypeIndex] || '<Select>';
+                        const station = row[stationIndex] || 'Default Station';
+                        const time = parseFloat(row[timeIndex]) || 0;
+                        const comments = commentsIndex !== -1 ? (row[commentsIndex] || '') : '';
+
+                        const workTypeDesc = `${workType} - ${taskName}`;
+                        
+                        importedTasks.push({
+                            task_name: taskName,
+                            work_type_desc: workTypeDesc,
+                            work_type: workType,
+                            times: { [station]: time },
+                            total_time: time,
+                            comments: comments
+                        });
+
+                        importedStations.add(station);
+                    });
+
+                    if (importedTasks.length === 0) {
+                        alert('No valid tasks found in the file');
+                        return;
+                    }
+
+                    if (confirm(`Found ${importedTasks.length} tasks. Do you want to import them?\n\nThis will replace all existing tasks.`)) {
+                        yamazumiData.process_data = importedTasks;
+                        
+                        importedStations.forEach(station => {
+                            if (!yamazumiData.stations.includes(station)) {
+                                yamazumiData.stations.push(station);
+                            }
+                        });
+
+                        updateStatistics();
+                        createCharts();
+                        renderTasksTable(yamazumiData.process_data);
+                        renderStationsList();
+                        saveSectionData();
+                        
+                        alert(`Successfully imported ${importedTasks.length} tasks!`);
+                    }
+                } catch (error) {
+                    console.error('Import error:', error);
+                    alert('Error importing file: ' + error.message);
+                }
+            };
+
+            reader.readAsArrayBuffer(file);
+            
+            event.target.value = '';
+        }
+
+        function createCharts() {
+            createYamazumiChart();
+            createYamazumiChartModify();
+            createYamazumiChartModify2();
+            createWorkTypeChart();
+        }
+
+        function createYamazumiChart() {
+            const ctx = document.getElementById('yamazumiChart').getContext('2d');
+            
+            const stations = yamazumiData.stations.filter(station => yamazumiData.station_stats[station] > 0);
+            const datasets = [];
+            const stationTasks = {};
+            
+            stations.forEach(station => {
+                stationTasks[station] = [];
+                yamazumiData.process_data.forEach(task => {
+                    if (task.times[station]) {
+                        stationTasks[station].push({
+                            task_name: task.task_name,
+                            work_type: task.work_type,
+                            time: task.times[station]
+                        });
+                    }
+                });
+            });
+            
+            const workTypeOrder = ['VA', 'NVA', 'Waste'];
+            const taskDatasets = {};
+            
+            yamazumiData.process_data.forEach(task => {
+                const workType = task.work_type;
+                if (!taskDatasets[workType]) {
+                    taskDatasets[workType] = [];
+                }
+                
+                const data = stations.map(station => task.times[station] || 0);
+                
+                if (data.some(value => value > 0)) {
+                    taskDatasets[workType].push({
+                        task_name: task.task_name,
+                        data: data,
+                        backgroundColor: workTypeColors[workType],
+                        borderColor: workTypeColors[workType],
+                        borderWidth: 1
+                    });
+                }
+            });
+            
+            workTypeOrder.forEach(workType => {
+                if (taskDatasets[workType]) {
+                    taskDatasets[workType].forEach(taskDataset => {
+                        datasets.push({
+                            label: `${taskDataset.task_name} (${workType})`,
+                            data: taskDataset.data,
+                            backgroundColor: taskDataset.backgroundColor,
+                            borderColor: taskDataset.borderColor,
+                            borderWidth: taskDataset.borderWidth,
+                            stack: 'barStack'
+                        });
+                    });
+                }
+            });
+            
+            const ttValue = parseFloat(document.getElementById('ttInput').value) || 0;
+            const oeeValue = parseFloat(document.getElementById('oeeInput').value) || 0;
+            
+            const ttStorageKey = `yamazumi_tt_${currentFactory}_${currentSection}`;
+            const oeeStorageKey = `yamazumi_oee_${currentFactory}_${currentSection}`;
+            
+            localStorage.setItem(ttStorageKey, ttValue);
+            localStorage.setItem(oeeStorageKey, oeeValue);
+            
+            let stationTotalTime = 0;
+            stations.forEach(station => {
+                stationTotalTime += yamazumiData.station_stats[station] || 0;
+            });
+            const averageCT = stations.length > 0 ? stationTotalTime / stations.length : 0;
+            const tctValue = ttValue * oeeValue;
+            
+            const ttData = stations.map(() => ttValue);
+            const averageCTData = stations.map(() => averageCT);
+            const tctData = stations.map(() => tctValue);
+            
+            const stationMaxValues = stations.map(station => yamazumiData.station_stats[station] || 0);
+            const maxStationValue = Math.max(...stationMaxValues);
+            const maxValue = Math.max(
+                maxStationValue,
+                ttValue,
+                averageCT,
+                tctValue
+            );
+            
+            datasets.push({
+                type: 'line',
+                label: `TT: ${ttValue.toFixed(2)}`,
+                data: ttData,
+                borderColor: '#FF6384',
+                backgroundColor: '#FF6384',
+                borderWidth: 3,
+                pointRadius: 0,
+                fill: false,
+                order: 1,
+                stack: undefined,
+                yAxisID: 'yLine'
+            });
+            
+            datasets.push({
+                type: 'line',
+                label: `AverageCT: ${averageCT.toFixed(2)}`,
+                data: averageCTData,
+                borderColor: '#36A2EB',
+                backgroundColor: '#36A2EB',
+                borderWidth: 3,
+                pointRadius: 0,
+                fill: false,
+                order: 2,
+                stack: undefined,
+                yAxisID: 'yLine'
+            });
+            
+            datasets.push({
+                type: 'line',
+                label: `TCT: ${tctValue.toFixed(2)}`,
+                data: tctData,
+                borderColor: '#FFCE56',
+                backgroundColor: '#FFCE56',
+                borderWidth: 3,
+                pointRadius: 0,
+                fill: false,
+                order: 3,
+                stack: undefined,
+                yAxisID: 'yLine'
+            });
+            
+            if (window.yamazumiChartInstance) {
+                window.yamazumiChartInstance.destroy();
+            }
+            
+            Chart.register(ChartDataLabels);
+            
+            window.yamazumiChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: stations,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const clickedStation = stations[index];
+                            
+                            if (selectedStation === clickedStation) {
+                                selectedStation = null;
+                            } else {
+                                selectedStation = clickedStation;
+                            }
+                            
+                            createWorkTypeChart();
+                        }
+                    },
+                    onHover: (event, elements) => {
+                        event.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default';
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            title: {
+                                display: true,
+                                text: 'Stations'
+                            }
+                        },
+                        y: {
+                            stacked: true,
+                            title: {
+                                display: true,
+                                text: 'Time (seconds)'
+                            },
+                            min: 0,
+                            max: maxValue
+                        },
+                        yLine: {
+                            type: 'linear',
+                            display: false,
+                            stacked: false,
+                            position: 'left',
+                            grid: {
+                                drawOnChartArea: false
+                            },
+                            min: 0,
+                            max: maxValue
+                        }
+                    },
+                    plugins: {
+                        datalabels: {
+                            color: 'white',
+                            font: {
+                                weight: 'bold',
+                                size: 10
+                            },
+                            anchor: 'center',
+                            align: 'center',
+                            formatter: function(value, context) {
+                                if (value > 0 && context.dataset.type !== 'line') {
+                                    return value + 's';
+                                }
+                                return '';
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Yamazumi Chart - Work Distribution by Station'
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const station = context.label;
+                                    const taskName = context.dataset.label;
+                                    const time = context.raw;
+                                    
+                                    let result = [];
+                                    
+                                    result.push(`${station} - ${taskName}: ${time}s`);
+                                    
+                                    return result;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createYamazumiChartModify() {
+            const ctx = document.getElementById('yamazumiChartModify').getContext('2d');
+            
+            const stations = yamazumiData.stations.filter(station => yamazumiData.station_stats[station] > 0);
+            const datasets = [];
+            
+            yamazumiData.process_data.forEach(task => {
+                const data = stations.map(station => task.times[station] || 0);
+                
+                if (data.some(value => value > 0)) {
+                    datasets.push({
+                        label: `${task.task_name} (${task.work_type})`,
+                        data: data,
+                        backgroundColor: workTypeColors[task.work_type],
+                        borderColor: workTypeColors[task.work_type],
+                        borderWidth: 1
+                    });
+                }
+            });
+            
+            const ttValue = parseFloat(document.getElementById('ttInput').value) || 0;
+            const oeeValue = parseFloat(document.getElementById('oeeInput').value) || 0;
+            
+            let stationTotalTime = 0;
+            stations.forEach(station => {
+                stationTotalTime += yamazumiData.station_stats[station] || 0;
+            });
+            const averageCT = stations.length > 0 ? stationTotalTime / stations.length : 0;
+            const tctValue = ttValue * oeeValue;
+            
+            const ttData = stations.map(() => ttValue);
+            const averageCTData = stations.map(() => averageCT);
+            const tctData = stations.map(() => tctValue);
+            
+            const stationMaxValues = stations.map(station => yamazumiData.station_stats[station] || 0);
+            const maxStationValue = Math.max(...stationMaxValues);
+            const maxValue = Math.max(
+                maxStationValue,
+                ttValue,
+                averageCT,
+                tctValue
+            );
+            
+            datasets.push({
+                type: 'line',
+                label: `TT: ${ttValue.toFixed(2)}`,
+                data: ttData,
+                borderColor: '#FF6384',
+                backgroundColor: '#FF6384',
+                borderWidth: 3,
+                pointRadius: 0,
+                fill: false,
+                order: 1,
+                yAxisID: 'yLine'
+            });
+            
+            datasets.push({
+                type: 'line',
+                label: `AverageCT: ${averageCT.toFixed(2)}`,
+                data: averageCTData,
+                borderColor: '#36A2EB',
+                backgroundColor: '#36A2EB',
+                borderWidth: 3,
+                pointRadius: 0,
+                fill: false,
+                order: 2,
+                yAxisID: 'yLine'
+            });
+            
+            datasets.push({
+                type: 'line',
+                label: `TCT: ${tctValue.toFixed(2)}`,
+                data: tctData,
+                borderColor: '#FFCE56',
+                backgroundColor: '#FFCE56',
+                borderWidth: 3,
+                pointRadius: 0,
+                fill: false,
+                order: 3,
+                yAxisID: 'yLine'
+            });
+            
+            if (window.yamazumiChartModifyInstance) {
+                window.yamazumiChartModifyInstance.destroy();
+            }
+            
+            Chart.register(ChartDataLabels);
+            
+            window.yamazumiChartModifyInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: stations,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    onClick: (event, elements) => {
+                    },
+                    onHover: (event, elements) => {
+                        event.native.target.style.cursor = elements.length > 0 ? 'grab' : 'default';
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            title: {
+                                display: true,
+                                text: 'Stations'
+                            }
+                        },
+                        y: {
+                            stacked: true,
+                            title: {
+                                display: true,
+                                text: 'Time (seconds)'
+                            },
+                            min: 0,
+                            max: maxValue
+                        },
+                        yLine: {
+                            type: 'linear',
+                            display: false,
+                            stacked: false,
+                            position: 'left',
+                            grid: {
+                                drawOnChartArea: false
+                            },
+                            min: 0,
+                            max: maxValue
+                        }
+                    },
+                    plugins: {
+                        datalabels: {
+                            color: 'white',
+                            font: {
+                                weight: 'bold',
+                                size: 10
+                            },
+                            anchor: 'center',
+                            align: 'center',
+                            formatter: function(value, context) {
+                                if (value > 0 && context.dataset.type !== 'line') {
+                                    return value + 's';
+                                }
+                                return '';
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Yamazumi Chart (modify) - Drag task to swap or move to station'
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const station = context.label;
+                                    const taskName = context.dataset.label;
+                                    const time = context.raw;
+                                    
+                                    let result = [];
+                                    
+                                    result.push(`${station} - ${taskName}: ${time}s`);
+                                    result.push('Drag to swap or move to another station');
+                                    
+                                    return result;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        const canvasModify = document.getElementById('yamazumiChartModify');
+        let isDraggingModify = false;
+        let dragStartXModify = 0;
+        let dragStartYModify = 0;
+        let draggedTaskInfoModify = null;
+
+        canvasModify.addEventListener('mousedown', function(e) {
+            if (e.button === 2) {
+                return;
+            }
+            
+            const rect = canvasModify.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const elements = window.yamazumiChartModifyInstance.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
+            
+            if (elements.length > 0) {
+                const point = elements[0];
+                const datasetIndex = point.datasetIndex;
+                const index = point.index;
+                
+                const chartData = window.yamazumiChartModifyInstance.data;
+                const targetStation = chartData.labels[index];
+                const targetTaskLabel = chartData.datasets[datasetIndex].label;
+                const targetTime = chartData.datasets[datasetIndex].data[index];
+                
+                if (targetTime > 0 && chartData.datasets[datasetIndex].type !== 'line') {
+                    isDraggingModify = true;
+                    dragStartXModify = x;
+                    dragStartYModify = y;
+                    draggedTaskInfoModify = {
+                        taskName: targetTaskLabel,
+                        originalStation: targetStation,
+                        time: targetTime
+                    };
+                    canvasModify.style.cursor = 'grabbing';
+                }
+            }
+        });
+
+        canvasModify.addEventListener('mousemove', function(e) {
+            if (isDraggingModify) {
+                canvasModify.style.cursor = 'grabbing';
+            }
+        });
+
+        canvasModify.addEventListener('mouseup', function(e) {
+            if (e.button === 2) {
+                return;
+            }
+            
+            if (!isDraggingModify || !draggedTaskInfoModify) {
+                isDraggingModify = false;
+                draggedTaskInfoModify = null;
+                canvasModify.style.cursor = 'default';
+                return;
+            }
+
+            const rect = canvasModify.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const chartArea = window.yamazumiChartModifyInstance.chartArea;
+            const xAxis = window.yamazumiChartModifyInstance.scales.x;
+
+            if (y >= chartArea.top && y <= chartArea.bottom) {
+                const stationIndex = xAxis.getValueForPixel(x);
+                const targetStation = window.yamazumiChartModifyInstance.data.labels[Math.round(stationIndex)];
+
+                const elements = window.yamazumiChartModifyInstance.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
+
+                if (elements.length > 0) {
+                    const point = elements[0];
+                    const targetDatasetIndex = point.datasetIndex;
+                    const targetIndex = point.index;
+
+                    const targetStationName = window.yamazumiChartModifyInstance.data.labels[targetIndex];
+                    const targetTaskLabel = window.yamazumiChartModifyInstance.data.datasets[targetDatasetIndex].label;
+                    const targetTime = window.yamazumiChartModifyInstance.data.datasets[targetDatasetIndex].data[targetIndex];
+
+                    const sourceTaskName = draggedTaskInfoModify.taskName.replace(/ \(VA\)| \(NVA\)| \(Waste\)/, '');
+                    const sourceStation = draggedTaskInfoModify.originalStation;
+                    const targetTaskName = targetTaskLabel.replace(/ \(VA\)| \(NVA\)| \(Waste\)/, '');
+
+                    if (targetTime > 0 && window.yamazumiChartModifyInstance.data.datasets[targetDatasetIndex].type !== 'line') {
+                        if (sourceStation === targetStationName) {
+                            alert('Cannot swap tasks within same station');
+                        } else {
+                            swapTasksBetweenStations(sourceTaskName, sourceStation, targetTaskName, targetStationName);
+                        }
+                    }
+                } else if (targetStation) {
+                    const sourceTaskName = draggedTaskInfoModify.taskName.replace(/ \(VA\)| \(NVA\)| \(Waste\)/, '');
+                    const sourceStation = draggedTaskInfoModify.originalStation;
+
+                    if (sourceStation !== targetStation) {
+                        moveTaskToStation(
+                            draggedTaskInfoModify.taskName,
+                            sourceStation,
+                            targetStation
+                        );
+                    } else {
+                        alert('Cannot move task to the same station');
+                    }
+                }
+            }
+
+            isDraggingModify = false;
+            draggedTaskInfoModify = null;
+            canvasModify.style.cursor = 'default';
+        });
+
+        canvasModify.addEventListener('mouseleave', function() {
+            if (isDraggingModify) {
+                isDraggingModify = false;
+                draggedTaskInfoModify = null;
+                canvasModify.style.cursor = 'default';
+            }
+        });
+
+        canvasModify.addEventListener('contextmenu', async function(e) {
+            e.preventDefault();
+            
+            isDraggingModify = false;
+            draggedTaskInfoModify = null;
+            canvasModify.style.cursor = 'default';
+            
+            const elements = window.yamazumiChartModifyInstance.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
+            
+            if (elements.length > 0) {
+                const point = elements[0];
+                const datasetIndex = point.datasetIndex;
+                const index = point.index;
+                
+                const chartData = window.yamazumiChartModifyInstance.data;
+                const targetStation = chartData.labels[index];
+                const targetTaskLabel = chartData.datasets[datasetIndex].label;
+                const targetTime = chartData.datasets[datasetIndex].data[index];
+                
+                if (targetTime > 0 && chartData.datasets[datasetIndex].type !== 'line') {
+                    const taskName = targetTaskLabel.replace(/ \(VA\)| \(NVA\)| \(Waste\)/, '');
+                    const workType = targetTaskLabel.match(/\((VA|NVA|Waste)\)/)[1];
+                    
+                    if (confirm(`Confirm splitting "${taskName}"?`)) {
+                        const numParts = await customPrompt(`How many parts to split into?`, '2');
+                        
+                        if (numParts && !isNaN(numParts) && parseInt(numParts) > 1) {
+                            const parts = parseInt(numParts);
+                            const newTasks = [];
+                            let totalNewTime = 0;
+                            
+                            for (let i = 1; i <= parts; i++) {
+                                const newTaskName = `${taskName}.${i}`;
+                                const timeInput = await customPrompt(`Enter time for "${newTaskName}" (Total: ${targetTime}s, Remaining: ${targetTime - totalNewTime}s)`, '');
+                                
+                                if (timeInput === null) {
+                                    return;
+                                }
+                                
+                                const time = parseFloat(timeInput);
+                                
+                                if (isNaN(time) || time <= 0) {
+                                    alert('Please enter a valid positive number for time.');
+                                    return;
+                                }
+                                
+                                totalNewTime += time;
+                                newTasks.push({
+                                    name: newTaskName,
+                                    time: time
+                                });
+                            }
+                            
+                            if (Math.abs(totalNewTime - targetTime) > 0.01) {
+                                alert(`Time mismatch! Original: ${targetTime}s, Total of new tasks: ${totalNewTime}s. Please try again.`);
+                                return;
+                            }
+                            
+                            const originalTask = yamazumiData.process_data.find(t => t.task_name === taskName);
+                            
+                            if (originalTask) {
+                                yamazumiData.process_data = yamazumiData.process_data.filter(t => t.task_name !== taskName);
+                                
+                                newTasks.forEach(newTask => {
+                                    const newTaskData = {
+                                        task_name: newTask.name,
+                                        work_type_desc: `${workType} - ${newTask.name}`,
+                                        work_type: workType,
+                                        times: {},
+                                        total_time: newTask.time,
+                                        comments: originalTask.comments || ''
+                                    };
+                                    newTaskData.times[targetStation] = newTask.time;
+                                    yamazumiData.process_data.push(newTaskData);
+                                });
+                                
+                                saveToLocalStorage();
+                                updateStatistics();
+                                createYamazumiChart();
+                                createYamazumiChartModify();
+                                createYamazumiChartModify2();
+                                renderTasksTable(yamazumiData.process_data);
+                                renderStationsList();
+                                
+                                alert(`Task "${taskName}" has been split into ${parts} parts successfully!`);
+                            }
+                        } else if (numParts !== null) {
+                            alert('Please enter a valid number greater than 1.');
+                        }
+                    }
+                }
+            }
+        });
+
+        function moveTaskToStation(taskLabel, fromStation, toStation) {
+            const taskName = taskLabel.replace(/ \(VA\)| \(NVA\)| \(Waste\)/, '');
+            
+            const task = yamazumiData.process_data.find(t => t.task_name === taskName);
+            
+            if (task && task.times[fromStation]) {
+                const time = task.times[fromStation];
+                delete task.times[fromStation];
+                task.times[toStation] = time;
+                
+                saveToLocalStorage();
+                updateStatistics();
+                createYamazumiChart();
+                createYamazumiChartModify();
+                createYamazumiChartModify2();
+                renderTasksTable(yamazumiData.process_data);
+                renderStationsList();
+                
+                alert(`Task "${taskName}" moved from "${fromStation}" to "${toStation}"`);
+            }
+        }
+
+        function swapTasksBetweenStations(sourceTaskName, sourceStation, targetTaskName, targetStation) {
+            const sourceTask = yamazumiData.process_data.find(t => t.task_name === sourceTaskName);
+            const targetTask = yamazumiData.process_data.find(t => t.task_name === targetTaskName);
+            
+            if (sourceTask && targetTask) {
+                if (sourceStation === targetStation) {
+                    const tempTaskName = sourceTask.task_name;
+                    const tempWorkType = sourceTask.work_type;
+                    const tempWorkTypeDesc = sourceTask.work_type_desc;
+                    const tempTimes = {...sourceTask.times};
+                    const tempTotalTime = sourceTask.total_time;
+                    const tempComments = sourceTask.comments;
+                    
+                    sourceTask.task_name = targetTask.task_name;
+                    sourceTask.work_type = targetTask.work_type;
+                    sourceTask.work_type_desc = targetTask.work_type_desc;
+                    sourceTask.times = {...targetTask.times};
+                    sourceTask.total_time = targetTask.total_time;
+                    sourceTask.comments = targetTask.comments;
+                    
+                    targetTask.task_name = tempTaskName;
+                    targetTask.work_type = tempWorkType;
+                    targetTask.work_type_desc = tempWorkTypeDesc;
+                    targetTask.times = tempTimes;
+                    targetTask.total_time = tempTotalTime;
+                    targetTask.comments = tempComments;
+                } else {
+                    const sourceTime = sourceTask.times[sourceStation];
+                    const targetTime = targetTask.times[targetStation];
+                    
+                    delete sourceTask.times[sourceStation];
+                    delete targetTask.times[targetStation];
+                    
+                    sourceTask.times[targetStation] = sourceTime;
+                    targetTask.times[sourceStation] = targetTime;
+                }
+                
+                saveToLocalStorage();
+                updateStatistics();
+                createYamazumiChart();
+                createYamazumiChartModify();
+                createYamazumiChartModify2();
+                renderTasksTable(yamazumiData.process_data);
+                renderStationsList();
+                
+                if (sourceStation === targetStation) {
+                    alert(`Tasks swapped within "${sourceStation}": "${sourceTaskName}" and "${targetTaskName}"`);
+                } else {
+                    alert(`Tasks swapped: "${sourceTaskName}" moved to "${targetStation}" and "${targetTaskName}" moved to "${sourceStation}"`);
+                }
+            }
+        }
+
+        function createYamazumiChartModify2() {
+            const ctx = document.getElementById('yamazumiChartModify2').getContext('2d');
+            
+            const stations = yamazumiData.stations.filter(station => yamazumiData.station_stats[station] > 0);
+            const datasets = [];
+            
+            yamazumiData.process_data.forEach(task => {
+                const data = stations.map(station => task.times[station] || 0);
+                
+                if (data.some(value => value > 0)) {
+                    datasets.push({
+                        label: `${task.task_name} (${task.work_type})`,
+                        data: data,
+                        backgroundColor: workTypeColors[task.work_type],
+                        borderColor: workTypeColors[task.work_type],
+                        borderWidth: 1
+                    });
+                }
+            });
+            
+            const ttValue = parseFloat(document.getElementById('ttInput').value) || 0;
+            const oeeValue = parseFloat(document.getElementById('oeeInput').value) || 0;
+            
+            let stationTotalTime = 0;
+            stations.forEach(station => {
+                stationTotalTime += yamazumiData.station_stats[station] || 0;
+            });
+            const averageCT = stations.length > 0 ? stationTotalTime / stations.length : 0;
+            const tctValue = ttValue * oeeValue;
+            
+            const ttData = stations.map(() => ttValue);
+            const averageCTData = stations.map(() => averageCT);
+            const tctData = stations.map(() => tctValue);
+            
+            const stationMaxValues = stations.map(station => yamazumiData.station_stats[station] || 0);
+            const maxStationValue = Math.max(...stationMaxValues);
+            const maxValue = Math.max(
+                maxStationValue,
+                ttValue,
+                averageCT,
+                tctValue
+            );
+            
+            datasets.push({
+                type: 'line',
+                label: `TT: ${ttValue.toFixed(2)}`,
+                data: ttData,
+                borderColor: '#FF6384',
+                backgroundColor: '#FF6384',
+                borderWidth: 3,
+                pointRadius: 0,
+                fill: false,
+                order: 1,
+                yAxisID: 'yLine'
+            });
+            
+            datasets.push({
+                type: 'line',
+                label: `AverageCT: ${averageCT.toFixed(2)}`,
+                data: averageCTData,
+                borderColor: '#36A2EB',
+                backgroundColor: '#36A2EB',
+                borderWidth: 3,
+                pointRadius: 0,
+                fill: false,
+                order: 2,
+                yAxisID: 'yLine'
+            });
+            
+            datasets.push({
+                type: 'line',
+                label: `TCT: ${tctValue.toFixed(2)}`,
+                data: tctData,
+                borderColor: '#FFCE56',
+                backgroundColor: '#FFCE56',
+                borderWidth: 3,
+                pointRadius: 0,
+                fill: false,
+                order: 3,
+                yAxisID: 'yLine'
+            });
+            
+            if (window.yamazumiChartModify2Instance) {
+                window.yamazumiChartModify2Instance.destroy();
+            }
+            
+            Chart.register(ChartDataLabels);
+            
+            window.yamazumiChartModify2Instance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: stations,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    onClick: (event, elements) => {
+                    },
+                    onHover: (event, elements) => {
+                        event.native.target.style.cursor = elements.length > 0 ? 'grab' : 'default';
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            title: {
+                                display: true,
+                                text: 'Stations'
+                            }
+                        },
+                        y: {
+                            stacked: true,
+                            title: {
+                                display: true,
+                                text: 'Time (seconds)'
+                            },
+                            min: 0,
+                            max: maxValue
+                        },
+                        yLine: {
+                            type: 'linear',
+                            display: false,
+                            stacked: false,
+                            position: 'left',
+                            grid: {
+                                drawOnChartArea: false
+                            },
+                            min: 0,
+                            max: maxValue
+                        }
+                    },
+                    plugins: {
+                        datalabels: {
+                            color: 'white',
+                            font: {
+                                weight: 'bold',
+                                size: 10
+                            },
+                            anchor: 'center',
+                            align: 'center',
+                            formatter: function(value, context) {
+                                if (value > 0 && context.dataset.type !== 'line') {
+                                    return value + 's';
+                                }
+                                return '';
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Yamazumi Chart (modify2) - Drag task to swap or move to station'
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const station = context.label;
+                                    const taskName = context.dataset.label;
+                                    const time = context.raw;
+                                    
+                                    let result = [];
+                                    
+                                    result.push(`${station} - ${taskName}: ${time}s`);
+                                    result.push('Drag to swap or move to another station');
+                                    
+                                    return result;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        const canvasModify2 = document.getElementById('yamazumiChartModify2');
+        let isDraggingModify2 = false;
+        let dragStartXModify2 = 0;
+        let dragStartYModify2 = 0;
+        let draggedTaskInfoModify2 = null;
+
+        let mergingTask = null;
+        let isWaitingForSecondTask = false;
+
+        canvasModify2.addEventListener('mousedown', function(e) {
+            if (e.button === 2) {
+                return;
+            }
+            
+            const rect = canvasModify2.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const elements = window.yamazumiChartModify2Instance.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
+            
+            if (elements.length > 0) {
+                const point = elements[0];
+                const datasetIndex = point.datasetIndex;
+                const index = point.index;
+                
+                const chartData = window.yamazumiChartModify2Instance.data;
+                const targetStation = chartData.labels[index];
+                const targetTaskLabel = chartData.datasets[datasetIndex].label;
+                const targetTime = chartData.datasets[datasetIndex].data[index];
+                
+                if (targetTime > 0 && chartData.datasets[datasetIndex].type !== 'line') {
+                    if (e.ctrlKey) {
+                        const taskName = targetTaskLabel.replace(/ \(VA\)| \(NVA\)| \(Waste\)/, '');
+                        const task = yamazumiData.process_data.find(t => t.task_name === taskName && t.times[targetStation]);
+                        
+                        if (task) {
+                            if (isWaitingForSecondTask) {
+                                if (mergingTask.task.task_name === task.task_name && mergingTask.station === targetStation) {
+                                    alert('Cannot merge a task with itself');
+                                    mergingTask = null;
+                                    isWaitingForSecondTask = false;
+                                    return;
+                                }
+                                
+                                if (mergingTask.task.work_type !== task.work_type) {
+                                    alert('Cannot merge tasks with different work types');
+                                    mergingTask = null;
+                                    isWaitingForSecondTask = false;
+                                    return;
+                                }
+                                
+                                if (mergingTask.station !== targetStation) {
+                                    alert('Cannot merge tasks from different stations');
+                                    mergingTask = null;
+                                    isWaitingForSecondTask = false;
+                                    return;
+                                }
+                                
+                                openMergeTaskDialog(mergingTask.task, task, targetStation);
+                                mergingTask = null;
+                                isWaitingForSecondTask = false;
+                            } else {
+                                if (confirm('Confirm the merger?')) {
+                                    mergingTask = { task, station: targetStation };
+                                    isWaitingForSecondTask = true;
+                                    alert('Please select another task to be merged (must be the same Work Type)');
+                                }
+                            }
+                        }
+                        return;
+                    }
+                    
+                    isDraggingModify2 = true;
+                    dragStartXModify2 = x;
+                    dragStartYModify2 = y;
+                    draggedTaskInfoModify2 = {
+                        taskName: targetTaskLabel,
+                        originalStation: targetStation,
+                        time: targetTime
+                    };
+                    canvasModify2.style.cursor = 'grabbing';
+                }
+            }
+        });
+
+        canvasModify2.addEventListener('mousemove', function(e) {
+            if (isDraggingModify2) {
+                canvasModify2.style.cursor = 'grabbing';
+            }
+        });
+
+        canvasModify2.addEventListener('mouseup', function(e) {
+            if (e.button === 2) {
+                return;
+            }
+            
+            if (!isDraggingModify2 || !draggedTaskInfoModify2) {
+                isDraggingModify2 = false;
+                draggedTaskInfoModify2 = null;
+                canvasModify2.style.cursor = 'default';
+                return;
+            }
+
+            const rect = canvasModify2.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            const chartArea = window.yamazumiChartModify2Instance.chartArea;
+            const xAxis = window.yamazumiChartModify2Instance.scales.x;
+
+            if (y >= chartArea.top && y <= chartArea.bottom) {
+                const stationIndex = xAxis.getValueForPixel(x);
+                const targetStation = window.yamazumiChartModify2Instance.data.labels[Math.round(stationIndex)];
+
+                const elements = window.yamazumiChartModify2Instance.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
+
+                if (elements.length > 0) {
+                    const point = elements[0];
+                    const targetDatasetIndex = point.datasetIndex;
+                    const targetIndex = point.index;
+
+                    const targetStationName = window.yamazumiChartModify2Instance.data.labels[targetIndex];
+                    const targetTaskLabel = window.yamazumiChartModify2Instance.data.datasets[targetDatasetIndex].label;
+                    const targetTime = window.yamazumiChartModify2Instance.data.datasets[targetDatasetIndex].data[targetIndex];
+
+                    const sourceTaskName = draggedTaskInfoModify2.taskName.replace(/ \(VA\)| \(NVA\)| \(Waste\)/, '');
+                    const sourceStation = draggedTaskInfoModify2.originalStation;
+                    const targetTaskName = targetTaskLabel.replace(/ \(VA\)| \(NVA\)| \(Waste\)/, '');
+
+                    if (targetTime > 0 && window.yamazumiChartModify2Instance.data.datasets[targetDatasetIndex].type !== 'line') {
+                        swapTasksBetweenStations(sourceTaskName, sourceStation, targetTaskName, targetStationName);
+                    }
+                } else if (targetStation) {
+                    const sourceTaskName = draggedTaskInfoModify2.taskName.replace(/ \(VA\)| \(NVA\)| \(Waste\)/, '');
+                    const sourceStation = draggedTaskInfoModify2.originalStation;
+
+                    if (sourceStation !== targetStation) {
+                        moveTaskToStation(
+                            draggedTaskInfoModify2.taskName,
+                            sourceStation,
+                            targetStation
+                        );
+                    } else {
+                        alert('Cannot move task to the same station');
+                    }
+                }
+            }
+
+            isDraggingModify2 = false;
+            draggedTaskInfoModify2 = null;
+            canvasModify2.style.cursor = 'default';
+        });
+
+        canvasModify2.addEventListener('mouseleave', function() {
+            if (isDraggingModify2) {
+                isDraggingModify2 = false;
+                draggedTaskInfoModify2 = null;
+                canvasModify2.style.cursor = 'default';
+            }
+        });
+
+        canvasModify2.addEventListener('contextmenu', async function(e) {
+            e.preventDefault();
+            
+            isDraggingModify2 = false;
+            draggedTaskInfoModify2 = null;
+            canvasModify2.style.cursor = 'default';
+            
+            const elements = window.yamazumiChartModify2Instance.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
+            
+            if (elements.length > 0) {
+                const point = elements[0];
+                const datasetIndex = point.datasetIndex;
+                const index = point.index;
+                
+                const chartData = window.yamazumiChartModify2Instance.data;
+                const targetStation = chartData.labels[index];
+                const targetTaskLabel = chartData.datasets[datasetIndex].label;
+                const targetTime = chartData.datasets[datasetIndex].data[index];
+                
+                if (targetTime > 0 && chartData.datasets[datasetIndex].type !== 'line') {
+                    const taskName = targetTaskLabel.replace(/ \(VA\)| \(NVA\)| \(Waste\)/, '');
+                    const workType = targetTaskLabel.match(/\((VA|NVA|Waste)\)/)[1];
+                    
+                    if (confirm(`Confirm splitting "${taskName}"?`)) {
+                        const numParts = await customPrompt(`How many parts to split into?`, '2');
+                        
+                        if (numParts && !isNaN(numParts) && parseInt(numParts) > 1) {
+                            const parts = parseInt(numParts);
+                            const newTasks = [];
+                            let totalNewTime = 0;
+                            
+                            for (let i = 1; i <= parts; i++) {
+                                const newTaskName = `${taskName}.${i}`;
+                                const timeInput = await customPrompt(`Enter time for "${newTaskName}" (Total: ${targetTime}s, Remaining: ${targetTime - totalNewTime}s)`, '');
+                                
+                                if (timeInput === null) {
+                                    return;
+                                }
+                                
+                                const time = parseFloat(timeInput);
+                                
+                                if (isNaN(time) || time <= 0) {
+                                    alert('Please enter a valid positive number for time.');
+                                    return;
+                                }
+                                
+                                totalNewTime += time;
+                                newTasks.push({
+                                    name: newTaskName,
+                                    time: time
+                                });
+                            }
+                            
+                            if (Math.abs(totalNewTime - targetTime) > 0.01) {
+                                alert(`Time mismatch! Original: ${targetTime}s, Total of new tasks: ${totalNewTime}s. Please try again.`);
+                                return;
+                            }
+                            
+                            const originalTask = yamazumiData.process_data.find(t => t.task_name === taskName);
+                            
+                            if (originalTask) {
+                                yamazumiData.process_data = yamazumiData.process_data.filter(t => t.task_name !== taskName);
+                                
+                                newTasks.forEach(newTask => {
+                                    const newTaskData = {
+                                        task_name: newTask.name,
+                                        work_type_desc: `${workType} - ${newTask.name}`,
+                                        work_type: workType,
+                                        times: {},
+                                        total_time: newTask.time,
+                                        comments: originalTask.comments || ''
+                                    };
+                                    newTaskData.times[targetStation] = newTask.time;
+                                    yamazumiData.process_data.push(newTaskData);
+                                });
+                                
+                                saveToLocalStorage();
+                                updateStatistics();
+                                createYamazumiChart();
+                                createYamazumiChartModify();
+                                createYamazumiChartModify2();
+                                renderTasksTable(yamazumiData.process_data);
+                                renderStationsList();
+                                
+                                alert(`Task "${taskName}" has been split into ${parts} parts successfully!`);
+                            }
+                        } else if (numParts !== null) {
+                            alert('Please enter a valid number greater than 1.');
+                        }
+                    }
+                }
+            }
+        });
+
+        function saveToLocalStorage() {
+            if (currentFactory && currentSection) {
+                const storageKey = `yamazumi_${currentFactory}_${currentSection}`;
+                const dataToSave = {
+                    process_data: yamazumiData.process_data,
+                    stations: yamazumiData.stations,
+                    prepared_by: yamazumiData.basic_info.prepared_by,
+                    process_name: yamazumiData.basic_info.process_name,
+                    process_type: yamazumiData.basic_info.process_type,
+                    measurement_method: yamazumiData.basic_info.measurement_method,
+                    time_unit: yamazumiData.basic_info.time_unit,
+                    takt_time: yamazumiData.basic_info.takt_time
+                };
+                localStorage.setItem(storageKey, JSON.stringify(dataToSave));
+            }
+        }
+
+        function createWorkTypeChart() {
+            const ctx = document.getElementById('workTypeChart').getContext('2d');
+            
+            const labels = [];
+            const data = [];
+            const colors = [];
+            
+            if (selectedStation) {
+                const stationData = {
+                    "VA": 0,
+                    "NVA": 0,
+                    "Waste": 0
+                };
+                
+                yamazumiData.process_data.forEach(task => {
+                    if (task.times[selectedStation] && stationData[task.work_type] !== undefined) {
+                        stationData[task.work_type] += task.times[selectedStation];
+                    }
+                });
+                
+                Object.entries(stationData).forEach(([workType, time]) => {
+                    if (time > 0) {
+                        labels.push(workType);
+                        data.push(time);
+                        colors.push(workTypeColors[workType]);
+                    }
+                });
+            } else {
+                Object.entries(yamazumiData.work_type_stats).forEach(([workType, stats]) => {
+                    if (stats.total_time > 0) {
+                        labels.push(workType);
+                        data.push(stats.total_time);
+                        colors.push(workTypeColors[workType]);
+                    }
+                });
+            }
+            
+            if (window.workTypeChartInstance) {
+                window.workTypeChartInstance.destroy();
+            }
+            
+            const titleText = selectedStation 
+                ? `Work Type Distribution - ${selectedStation}` 
+                : 'Work Type Distribution - All Stations';
+            
+            const resetBtn = document.getElementById('resetStationBtn');
+            const stationInfo = document.getElementById('selectedStationInfo');
+            const stationName = document.getElementById('selectedStationName');
+            
+            if (selectedStation) {
+                resetBtn.classList.remove('hidden');
+                stationInfo.classList.remove('hidden');
+                stationName.textContent = selectedStation;
+            } else {
+                resetBtn.classList.add('hidden');
+                stationInfo.classList.add('hidden');
+            }
+            
+            window.workTypeChartInstance = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors,
+                        borderColor: colors.map(color => color),
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: titleText
+                        },
+                        legend: {
+                            display: true,
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${label}: ${value}s (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function resetStationSelection() {
+            selectedStation = null;
+            createWorkTypeChart();
+        }
+
+        function renderStationsList() {
+            const stationsList = document.getElementById('stationsList');
+            stationsList.innerHTML = '';
+            
+            yamazumiData.stations.forEach((station, index) => {
+                const stationCard = document.createElement('div');
+                stationCard.className = 'inline-flex items-center bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 cursor-move';
+                stationCard.draggable = true;
+                stationCard.dataset.index = index;
+                stationCard.innerHTML = `
+                    <span class="text-sm font-medium text-gray-700 mr-2">${index + 1}. ${station}</span>
+                    <div class="ml-3 flex space-x-1">
+                        <button onclick="editStation(${index})" class="text-blue-600 hover:text-blue-800 p-1">
+                            <i class="fas fa-edit text-xs"></i>
+                        </button>
+                        <button onclick="deleteStation(${index})" class="text-red-600 hover:text-red-800 p-1">
+                            <i class="fas fa-trash text-xs"></i>
+                        </button>
+                    </div>
+                `;
+                
+                stationCard.addEventListener('dragstart', handleStationDragStart);
+                stationCard.addEventListener('dragover', handleStationDragOver);
+                stationCard.addEventListener('drop', handleStationDrop);
+                stationCard.addEventListener('dragend', handleStationDragEnd);
+                
+                stationsList.appendChild(stationCard);
+            });
+        }
+
+        function updateStationSelect() {
+            const stationSelect = document.getElementById('station');
+            const currentValue = stationSelect.value;
+            
+            stationSelect.innerHTML = '<option value="">Select Station</option>';
+            
+            yamazumiData.stations.forEach(station => {
+                const option = document.createElement('option');
+                option.value = station;
+                option.textContent = station;
+                stationSelect.appendChild(option);
+            });
+            
+            if (currentValue && yamazumiData.stations.includes(currentValue)) {
+                stationSelect.value = currentValue;
+            }
+            
+            const filterStationSelect = document.getElementById('filterStation');
+            const currentFilterValue = filterStationSelect.value;
+            
+            filterStationSelect.innerHTML = '<option value="">All Stations</option>';
+            
+            yamazumiData.stations.forEach(station => {
+                const option = document.createElement('option');
+                option.value = station;
+                option.textContent = station;
+                filterStationSelect.appendChild(option);
+            });
+            
+            if (currentFilterValue && yamazumiData.stations.includes(currentFilterValue)) {
+                filterStationSelect.value = currentFilterValue;
+            }
+        }
+
+        function addStation() {
+            const newStationName = document.getElementById('newStationName').value.trim();
+            
+            if (!newStationName) {
+                alert('Please enter a station name');
+                return;
+            }
+            
+            if (yamazumiData.stations.includes(newStationName)) {
+                alert('This station already exists');
+                return;
+            }
+            
+            yamazumiData.stations.push(newStationName);
+            yamazumiData.station_stats[newStationName] = 0;
+            
+            // 保存到数据库
+            saveSectionData();
+            
+            saveToLocalStorage();
+            updateStationSelect();
+            renderStationsList();
+            createCharts();
+            
+            document.getElementById('newStationName').value = '';
+            
+            alert('Station added successfully!');
+        }
+
+        function deleteStation(index) {
+            const station = yamazumiData.stations[index];
+            
+            const hasTasks = yamazumiData.process_data.some(task => task.times[station]);
+            if (hasTasks) {
+                if (!confirm(`This station has ${yamazumiData.process_data.filter(t => t.times[station]).length} task(s) assigned. Deleting it will remove these tasks. Continue?`)) {
+                    return;
+                }
+            } else {
+                if (!confirm(`Are you sure you want to delete station "${station}"?`)) {
+                    return;
+                }
+            }
+            
+            yamazumiData.process_data = yamazumiData.process_data.filter(task => !task.times[station]);
+            
+            yamazumiData.stations.splice(index, 1);
+            delete yamazumiData.station_stats[station];
+            
+            if (selectedStation === station) {
+                selectedStation = null;
+            }
+            
+            // 保存到数据库
+            saveSectionData();
+            
+            saveToLocalStorage();
+            updateStatistics();
+            updateStationSelect();
+            renderStationsList();
+            filterTasks();
+            createCharts();
+            
+            alert('Station deleted successfully!');
+        }
+
+        function saveOriginalState() {
+            originalProcessData = JSON.parse(JSON.stringify(yamazumiData.process_data));
+            originalStationStats = JSON.parse(JSON.stringify(yamazumiData.station_stats));
+        }
+
+        function cancelAutoLineBalance() {
+            if (!originalProcessData || !originalStationStats) {
+                alert('No original state to restore.');
+                return;
+            }
+            
+            yamazumiData.process_data = JSON.parse(JSON.stringify(originalProcessData));
+            yamazumiData.station_stats = JSON.parse(JSON.stringify(originalStationStats));
+            
+            saveToLocalStorage();
+            updateStatistics();
+            updateStationSelect();
+            renderStationsList();
+            filterTasks();
+            createCharts();
+            
+            alert('Auto Line Balance has been cancelled. Original state restored.');
+        }
+
+        function autoLineBalance() {
+            const ttValue = parseFloat(localStorage.getItem('ttValue')) || 60;
+            const oeeValue = parseFloat(localStorage.getItem('oeeValue')) || 1;
+            const tctValue = ttValue * oeeValue;
+            
+            saveOriginalState();
+            
+            const startTime = Date.now();
+            const maxRuntime = 10000;
+            let improved = true;
+            
+            while (improved && (Date.now() - startTime) < maxRuntime) {
+                improved = false;
+                
+                for (let i = yamazumiData.stations.length - 1; i >= 0; i--) {
+                    const currentStation = yamazumiData.stations[i];
+                    const currentTotal = yamazumiData.station_stats[currentStation] || 0;
+                    
+                    if (currentTotal <= tctValue) {
+                        continue;
+                    }
+                    
+                    const tasksInStation = yamazumiData.process_data.filter(task => task.times[currentStation]);
+                    
+                    for (const task of tasksInStation) {
+                        const taskTime = task.times[currentStation];
+                        
+                        let bestMove = null;
+                        let bestScore = Infinity;
+                        
+                        const adjacentStations = [];
+                        if (i > 0) {
+                            adjacentStations.push({ index: i - 1, name: yamazumiData.stations[i - 1] });
+                        }
+                        if (i < yamazumiData.stations.length - 1) {
+                            adjacentStations.push({ index: i + 1, name: yamazumiData.stations[i + 1] });
+                        }
+                        
+                        for (const adj of adjacentStations) {
+                            const adjTotal = yamazumiData.station_stats[adj.name] || 0;
+                            const newCurrentTotal = currentTotal - taskTime;
+                            const newAdjTotal = adjTotal + taskTime;
+                            
+                            if (newAdjTotal > tctValue) {
+                                continue;
+                            }
+                            
+                            const currentScore = Math.abs(currentTotal - tctValue) + Math.abs(adjTotal - tctValue);
+                            const newScore = Math.abs(newCurrentTotal - tctValue) + Math.abs(newAdjTotal - tctValue);
+                            
+                            if (newScore < bestScore) {
+                                bestScore = newScore;
+                                bestMove = { task, fromStation: currentStation, toStation: adj.name };
+                            }
+                        }
+                        
+                        if (bestMove) {
+                            const { task, fromStation, toStation } = bestMove;
+                            
+                            task.times[toStation] = task.times[fromStation];
+                            delete task.times[fromStation];
+                            
+                            yamazumiData.station_stats[fromStation] -= taskTime;
+                            yamazumiData.station_stats[toStation] = (yamazumiData.station_stats[toStation] || 0) + taskTime;
+                            
+                            improved = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            saveToLocalStorage();
+            updateStatistics();
+            updateStationSelect();
+            renderStationsList();
+            filterTasks();
+            createCharts();
+            
+            alert('Auto Line Balance Finish.');
+        }
+
+        let editingTaskIndex = null;
+
+        function openTaskModal(index = null) {
+            editingTaskIndex = index;
+            const modal = document.getElementById('taskModal');
+            const form = document.getElementById('taskForm');
+            
+            updateStationSelect();
+            
+            if (index !== null) {
+                const task = yamazumiData.process_data[index];
+                document.getElementById('taskName').value = task.task_name;
+                document.getElementById('workType').value = task.work_type;
+                const firstStation = Object.keys(task.times)[0] || '';
+                document.getElementById('station').value = firstStation;
+                const firstTime = Object.values(task.times)[0] || 0;
+                document.getElementById('taskTime').value = firstTime;
+                document.getElementById('taskComments').value = task.comments || '';
+                modal.querySelector('h3').textContent = 'Edit Task';
+            } else {
+                form.reset();
+                modal.querySelector('h3').textContent = 'Add New Task';
+            }
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeTaskModal() {
+            const modal = document.getElementById('taskModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            editingTaskIndex = null;
+        }
+
+        let editingStationIndex = null;
+
+        function openEditStationModal(index) {
+            editingStationIndex = index;
+            const station = yamazumiData.stations[index];
+            document.getElementById('currentStationName').value = station;
+            document.getElementById('newStationNameEdit').value = station;
+            
+            const modal = document.getElementById('editStationModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        let mergingTasks = null;
+
+        function openMergeTaskDialog(task1, task2, station) {
+            const task1Time = task1.times[station] || 0;
+            const task2Time = task2.times[station] || 0;
+            const totalTime = task1Time + task2Time;
+
+            document.getElementById('mergeTask1Name').value = task1.task_name;
+            document.getElementById('mergeTask2Name').value = task2.task_name;
+            document.getElementById('mergeWorkType').value = task1.work_type;
+            document.getElementById('mergeTotalTime').value = totalTime + ' seconds';
+            document.getElementById('mergeNewTaskName').value = task1.task_name;
+
+            mergingTasks = { task1, task2, station };
+
+            const modal = document.getElementById('mergeTaskModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeMergeTaskModal() {
+            const modal = document.getElementById('mergeTaskModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            mergingTasks = null;
+        }
+
+        function mergeTasks() {
+            if (!mergingTasks) {
+                return;
+            }
+
+            const { task1, task2, station } = mergingTasks;
+            const newTaskName = document.getElementById('mergeNewTaskName').value.trim();
+            const task1Time = task1.times[station] || 0;
+            const task2Time = task2.times[station] || 0;
+            const totalTime = task1Time + task2Time;
+
+            const newTask = {
+                task_name: newTaskName,
+                work_type: task1.work_type,
+                work_type_desc: `${task1.work_type} - ${newTaskName}`,
+                times: {},
+                total_time: totalTime
+            };
+            newTask.times[station] = totalTime;
+
+            yamazumiData.process_data = yamazumiData.process_data.filter(t => t !== task1 && t !== task2);
+            yamazumiData.process_data.push(newTask);
+
+            yamazumiData.station_stats[station] = (yamazumiData.station_stats[station] || 0) - task1Time - task2Time + totalTime;
+
+            saveToLocalStorage();
+            updateStatistics();
+            renderStationsList();
+            filterTasks();
+            createCharts();
+
+            closeMergeTaskModal();
+            alert('Tasks merged successfully!');
+        }
+
+        function closeEditStationModal() {
+            const modal = document.getElementById('editStationModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            editingStationIndex = null;
+        }
+
+        function editStation(index) {
+            openEditStationModal(index);
+        }
+
+        let promptResolve = null;
+
+        function customPrompt(message, defaultValue = '') {
+            return new Promise((resolve) => {
+                promptResolve = resolve;
+                document.getElementById('promptMessage').textContent = message;
+                document.getElementById('promptInput').value = defaultValue;
+                document.getElementById('promptModal').classList.remove('hidden');
+                document.getElementById('promptModal').classList.add('flex');
+                document.getElementById('promptInput').focus();
+            });
+        }
+
+        function closePromptModal() {
+            document.getElementById('promptModal').classList.add('hidden');
+            document.getElementById('promptModal').classList.remove('flex');
+            if (promptResolve) {
+                promptResolve(null);
+                promptResolve = null;
+            }
+        }
+
+        function confirmPrompt() {
+            const value = document.getElementById('promptInput').value;
+            document.getElementById('promptModal').classList.add('hidden');
+            document.getElementById('promptModal').classList.remove('flex');
+            if (promptResolve) {
+                promptResolve(value);
+                promptResolve = null;
+            }
+        }
+
+        const promptInput = document.getElementById('promptInput');
+        if (promptInput) {
+            promptInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    confirmPrompt();
+                }
+            });
+        }
+    </script>
+
+    <!-- Task Modal -->
+    <div id="taskModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="px-6 py-4 border-b">
+                <h3 class="text-lg font-semibold text-gray-900">Add New Task</h3>
+            </div>
+            <div class="p-6">
+                <form id="taskForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Task Name</label>
+                        <input type="text" id="taskName" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Work Type</label>
+                        <select id="workType" required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Select Work Type</option>
+                            <option value="VA">VA (Value Added)</option>
+                            <option value="NVA">NVA (Non-Value Added)</option>
+                            <option value="Waste">Waste</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Station</label>
+                        <select id="station" required
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Select Station</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Time (seconds)</label>
+                        <input type="number" id="taskTime" min="1" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Comments</label>
+                        <input type="text" id="taskComments" placeholder="Optional comments"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="flex space-x-3 pt-4">
+                        <button type="button" onclick="closeTaskModal()" class="flex-1 bg-gray-200 text-gray-700 py-2 rounded-md hover:bg-gray-300 transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit" class="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors">
+                            Save
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Merge Task Modal -->
+    <div id="mergeTaskModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="px-6 py-4 border-b">
+                <h3 class="text-lg font-semibold text-gray-900">Merge Tasks</h3>
+            </div>
+            <div class="p-6">
+                <form id="mergeTaskForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Task 1</label>
+                        <input type="text" id="mergeTask1Name" readonly
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-600">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Task 2</label>
+                        <input type="text" id="mergeTask2Name" readonly
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-600">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Work Type</label>
+                        <input type="text" id="mergeWorkType" readonly
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-600">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Total Time</label>
+                        <input type="text" id="mergeTotalTime" readonly
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-600">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Please enter the task name after merging</label>
+                        <input type="text" id="mergeNewTaskName" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="flex space-x-3 pt-4">
+                        <button type="button" onclick="closeMergeTaskModal()" class="flex-1 bg-gray-200 text-gray-700 py-2 rounded-md hover:bg-gray-300 transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit" class="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors">
+                            Merge
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Station Modal -->
+    <div id="editStationModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="px-6 py-4 border-b">
+                <h3 class="text-lg font-semibold text-gray-900">Edit Station Name</h3>
+            </div>
+            <div class="p-6">
+                <form id="editStationForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Current Station Name</label>
+                        <input type="text" id="currentStationName" readonly
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-600">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">New Station Name</label>
+                        <input type="text" id="newStationNameEdit" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="flex space-x-3 pt-4">
+                        <button type="button" onclick="closeEditStationModal()" class="flex-1 bg-gray-200 text-gray-700 py-2 rounded-md hover:bg-gray-300 transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit" class="flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700 transition-colors">
+                            Save
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Prompt Modal -->
+    <div id="promptModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="px-6 py-4 border-b">
+                <h3 id="promptTitle" class="text-lg font-semibold text-gray-900">Input</h3>
+            </div>
+            <div class="p-6">
+                <p id="promptMessage" class="text-gray-700 mb-4"></p>
+                <input type="text" id="promptInput" 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-4">
+                <div class="flex justify-end gap-3">
+                    <button onclick="closePromptModal()" 
+                            class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors">
+                        Cancel
+                    </button>
+                    <button onclick="confirmPrompt()" 
+                            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                        OK
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

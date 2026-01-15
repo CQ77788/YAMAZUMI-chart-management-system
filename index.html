@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yamazumi Process Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
+    <script src="data.js"></script>
+    
+    <script>
+        let currentUser = null;
+        let factoriesData = {};
+
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/me');
+                
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = 'login.html';
+                    }
+                    return;
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentUser = result.user;
+                    document.getElementById('userInfo').classList.remove('hidden');
+                    document.getElementById('usernameDisplay').textContent = currentUser.username;
+                    await loadFactories();
+                } else {
+                    window.location.href = 'login.html';
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
+                window.location.href = 'login.html';
+            }
+        }
+
+        async function logout() {
+            try {
+                await fetch('/api/logout', { method: 'POST' });
+                window.location.href = 'login.html';
+            } catch (error) {
+                console.error('Logout failed:', error);
+            }
+        }
+
+        async function loadFactories() {
+            try {
+                const response = await fetch('/api/factories');
+                
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        window.location.href = 'login.html';
+                    }
+                    return;
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    factoriesData = {};
+                    for (const factory of result.factories) {
+                        factoriesData[factory.name] = {
+                            id: factory.id,
+                            sections: {}
+                        };
+                        
+                        const sectionsResponse = await fetch(`/api/factories/${encodeURIComponent(factory.name)}/sections`);
+                        if (sectionsResponse.ok) {
+                            const sectionsResult = await sectionsResponse.json();
+                            if (sectionsResult.success) {
+                                sectionsResult.sections.forEach(section => {
+                                    factoriesData[factory.name].sections[section.name] = {
+                                        id: section.id,
+                                        process_name: section.process_name || section.name
+                                    };
+                                });
+                            }
+                        }
+                    }
+                    refreshFactorySelect();
+                }
+            } catch (error) {
+                console.error('Error loading factories:', error);
+            }
+        }
+
+        function getFactoriesData() {
+            return factoriesData;
+        }
+    </script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div class="flex justify-end px-4 py-4">
+        <div id="userInfo" class="hidden z-50">
+            <div class="relative group">
+                <button class="flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-sm hover:shadow-md transition-all text-gray-700 text-sm">
+                    <i class="fas fa-user-circle text-blue-500 text-lg"></i>
+                    <span id="usernameDisplay" class="font-medium"></span>
+                    <i class="fas fa-chevron-down text-xs text-gray-400"></i>
+                </button>
+                <div class="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+                    <div class="py-1">
+                        <button onclick="openUserModal()" class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2">
+                            <i class="fas fa-user-cog text-gray-400"></i>
+                            Profile
+                        </button>
+                        <button onclick="logout()" class="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 flex items-center gap-2">
+                            <i class="fas fa-sign-out-alt text-gray-400"></i>
+                            Logout
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-4xl mx-auto">
+            <div class="text-center mb-12">
+                <div class="inline-flex items-center justify-center w-20 h-20 bg-blue-600 rounded-full mb-4">
+                    <i class="fas fa-industry text-white text-3xl"></i>
+                </div>
+                <h1 class="text-4xl font-bold text-gray-900 mb-2">Yamazumi Process Management</h1>
+                <p class="text-gray-600">Select Factory and Process Section to manage your processes</p>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-xl p-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <label class="block text-lg font-semibold text-gray-700">
+                                <i class="fas fa-building text-blue-600 mr-2"></i>Select Factory
+                            </label>
+                            <div class="flex gap-2">
+                                <button onclick="openFactoryModal('add')" class="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors" title="Add Factory">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                                <button onclick="openFactoryModal('edit')" class="p-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors" title="Edit Factory">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button onclick="deleteFactory()" class="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors" title="Delete Factory">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <select id="factorySelect" 
+                                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+                            <option value="">-- Select Factory --</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <label class="block text-lg font-semibold text-gray-700">
+                                <i class="fas fa-cogs text-indigo-600 mr-2"></i>Select Process Section
+                            </label>
+                            <div class="flex gap-2">
+                                <button onclick="openSectionModal('add')" class="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors" title="Add Process Section">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                                <button onclick="openSectionModal('edit')" class="p-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors" title="Edit Process Section">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button onclick="deleteSection()" class="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors" title="Delete Process Section">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <select id="processSectionSelect" 
+                                class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                                disabled>
+                            <option value="">-- Select Process Section --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mt-8">
+                    <button id="openToolBtn" 
+                            class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 rounded-lg text-lg font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all transform hover:scale-[1.02] disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                            disabled>
+                        <i class="fas fa-arrow-right mr-2"></i>Open Yamazumi Process Modeling Tool
+                    </button>
+                </div>
+
+                <div id="selectionSummary" class="mt-8 p-4 bg-blue-50 rounded-lg hidden">
+                    <h3 class="font-semibold text-gray-900 mb-2">
+                        <i class="fas fa-info-circle text-blue-600 mr-2"></i>Selected Process
+                    </h3>
+                    <p class="text-gray-700">
+                        Factory: <span id="selectedFactory" class="font-semibold text-blue-600"></span><br>
+                        Process Section: <span id="selectedSection" class="font-semibold text-indigo-600"></span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white rounded-xl shadow-md p-6 text-center">
+                    <div class="inline-flex items-center justify-center w-12 h-12 bg-green-100 rounded-full mb-3">
+                        <i class="fas fa-chart-bar text-green-600 text-xl"></i>
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-2">Visual Analysis</h3>
+                    <p class="text-sm text-gray-600">Interactive charts for process analysis</p>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-md p-6 text-center">
+                    <div class="inline-flex items-center justify-center w-12 h-12 bg-yellow-100 rounded-full mb-3">
+                        <i class="fas fa-tasks text-yellow-600 text-xl"></i>
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-2">Task Management</h3>
+                    <p class="text-sm text-gray-600">Add, edit, and delete process tasks</p>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-md p-6 text-center">
+                    <div class="inline-flex items-center justify-center w-12 h-12 bg-purple-100 rounded-full mb-3">
+                        <i class="fas fa-file-export text-purple-600 text-xl"></i>
+                    </div>
+                    <h3 class="font-semibold text-gray-900 mb-2">Data Export</h3>
+                    <p class="text-sm text-gray-600">Export data in JSON or CSV format</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const factorySelect = document.getElementById('factorySelect');
+        const processSectionSelect = document.getElementById('processSectionSelect');
+        const openToolBtn = document.getElementById('openToolBtn');
+        const selectionSummary = document.getElementById('selectionSummary');
+        const selectedFactory = document.getElementById('selectedFactory');
+        const selectedSection = document.getElementById('selectedSection');
+
+        function populateFactories() {
+            Object.keys(factoriesData).forEach(factory => {
+                const option = document.createElement('option');
+                option.value = factory;
+                option.textContent = factory;
+                factorySelect.appendChild(option);
+            });
+        }
+
+        function populateProcessSections(factory) {
+            processSectionSelect.innerHTML = '<option value="">-- Select Process Section --</option>';
+            
+            if (factory && factoriesData[factory]) {
+                Object.keys(factoriesData[factory].sections).forEach(section => {
+                    const option = document.createElement('option');
+                    option.value = section;
+                    option.textContent = section;
+                    processSectionSelect.appendChild(option);
+                });
+                processSectionSelect.disabled = false;
+            } else {
+                processSectionSelect.disabled = true;
+            }
+        }
+
+        function updateSelectionSummary() {
+            const factory = factorySelect.value;
+            const section = processSectionSelect.value;
+            
+            if (factory && section) {
+                selectedFactory.textContent = factory;
+                selectedSection.textContent = section;
+                selectionSummary.classList.remove('hidden');
+                openToolBtn.disabled = false;
+            } else {
+                selectionSummary.classList.add('hidden');
+                openToolBtn.disabled = true;
+            }
+        }
+
+        async function openYamazumiTool() {
+            const factory = factorySelect.value;
+            const section = processSectionSelect.value;
+            
+            if (factory && section) {
+                try {
+                    const response = await fetch(`/api/factories/${encodeURIComponent(factory)}/sections`);
+                    const result = await response.json();
+                    
+                    if (result.success && result.sections) {
+                        const sectionData = result.sections.find(s => s.name === section);
+                        if (sectionData) {
+                            const processData = JSON.parse(sectionData.process_data || '[]');
+                            const stations = JSON.parse(sectionData.stations || '[]');
+                            
+                            const url = `yamazumi_tool.html?factory=${encodeURIComponent(factory)}&section=${encodeURIComponent(section)}&process=${encodeURIComponent(sectionData.process_name || section)}`;
+                            window.location.href = url;
+                        } else {
+                            alert('Section data not found');
+                        }
+                    } else {
+                        alert('Failed to load section data');
+                    }
+                } catch (error) {
+                    console.error('Error opening tool:', error);
+                    alert('Error opening tool: ' + error.message);
+                }
+            }
+        }
+
+        factorySelect.addEventListener('change', function() {
+            populateProcessSections(this.value);
+            updateSelectionSummary();
+        });
+
+        processSectionSelect.addEventListener('change', updateSelectionSummary);
+        openToolBtn.addEventListener('click', openYamazumiTool);
+
+        populateFactories();
+
+        let currentFactoryMode = 'add';
+        let currentSectionMode = 'add';
+        let originalFactoryName = '';
+        let originalSectionName = '';
+
+        function openFactoryModal(mode) {
+            currentFactoryMode = mode;
+            const modal = document.getElementById('factoryModal');
+            const title = document.getElementById('factoryModalTitle');
+            const input = document.getElementById('factoryNameInput');
+
+            if (mode === 'add') {
+                title.textContent = 'Add Factory';
+                input.value = '';
+            } else if (mode === 'edit') {
+                const selectedFactory = factorySelect.value;
+                if (!selectedFactory) {
+                    alert('Please select a factory to edit');
+                    return;
+                }
+                title.textContent = 'Edit Factory';
+                input.value = selectedFactory;
+                originalFactoryName = selectedFactory;
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeFactoryModal() {
+            document.getElementById('factoryModal').classList.add('hidden');
+            document.getElementById('factoryForm').reset();
+        }
+
+        async function saveFactory(event) {
+            event.preventDefault();
+            const newName = document.getElementById('factoryNameInput').value.trim();
+
+            if (!newName) {
+                alert('Factory name cannot be empty');
+                return;
+            }
+
+            try {
+                let response;
+                let factoryId;
+
+                if (currentFactoryMode === 'add') {
+                    response = await fetch('/api/factories', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: newName })
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        factoriesData[newName] = {
+                            id: result.factory_id,
+                            sections: {}
+                        };
+                    } else {
+                        alert(result.message);
+                        return;
+                    }
+                } else if (currentFactoryMode === 'edit') {
+                    const selectedFactory = factorySelect.value;
+                    const factoryId = factoriesData[selectedFactory].id;
+                    
+                    if (newName !== originalFactoryName && factoriesData[newName]) {
+                        alert('Factory name already exists');
+                        return;
+                    }
+                    
+                    if (newName !== originalFactoryName) {
+                        response = await fetch(`/api/factories/${factoryId}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name: newName })
+                        });
+                        const result = await response.json();
+                        if (!result.success) {
+                            alert(result.message);
+                            return;
+                        }
+                        
+                        const factoryData = factoriesData[originalFactoryName];
+                        delete factoriesData[originalFactoryName];
+                        factoriesData[newName] = factoryData;
+                        factoriesData[newName].id = factoryId;
+                    }
+                }
+
+                refreshFactorySelect();
+                closeFactoryModal();
+                await loadFactories();
+            } catch (error) {
+                console.error('Error saving factory:', error);
+                alert('Error saving factory: ' + error.message);
+            }
+        }
+
+        async function deleteFactory() {
+            const selectedFactory = factorySelect.value;
+            if (!selectedFactory) {
+                alert('Please select a factory to delete');
+                return;
+            }
+
+            const factoryId = factoriesData[selectedFactory].id;
+
+            if (confirm(`Are you sure you want to delete "${selectedFactory}" and all its process sections?`)) {
+                try {
+                    const response = await fetch(`/api/factories/${factoryId}`, {
+                        method: 'DELETE'
+                    });
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        delete factoriesData[selectedFactory];
+                        refreshFactorySelect();
+                        processSectionSelect.innerHTML = '<option value="">-- Select Process Section --</option>';
+                        processSectionSelect.disabled = true;
+                        selectionSummary.classList.add('hidden');
+                        openToolBtn.disabled = true;
+                    } else {
+                        alert(result.message);
+                    }
+                } catch (error) {
+                    console.error('Error deleting factory:', error);
+                    alert('Error deleting factory: ' + error.message);
+                }
+            }
+        }
+
+        function openSectionModal(mode) {
+            currentSectionMode = mode;
+            const selectedFactory = factorySelect.value;
+
+            if (!selectedFactory) {
+                alert('Please select a factory first');
+                return;
+            }
+
+            const modal = document.getElementById('sectionModal');
+            const title = document.getElementById('sectionModalTitle');
+            const sectionInput = document.getElementById('sectionNameInput');
+
+            if (mode === 'add') {
+                title.textContent = 'Add Process Section';
+                sectionInput.value = '';
+            } else if (mode === 'edit') {
+                const selectedSection = processSectionSelect.value;
+                if (!selectedSection) {
+                    alert('Please select a process section to edit');
+                    return;
+                }
+                title.textContent = 'Edit Process Section';
+                sectionInput.value = selectedSection;
+                originalSectionName = selectedSection;
+            }
+
+            modal.classList.remove('hidden');
+        }
+
+        function closeSectionModal() {
+            document.getElementById('sectionModal').classList.add('hidden');
+            document.getElementById('sectionForm').reset();
+        }
+
+        async function saveSection(event) {
+            event.preventDefault();
+            const selectedFactory = factorySelect.value;
+            const newSectionName = document.getElementById('sectionNameInput').value.trim();
+
+            if (!newSectionName) {
+                alert('Process section name is required');
+                return;
+            }
+
+            try {
+                let response;
+
+                if (currentSectionMode === 'add') {
+                    if (factoriesData[selectedFactory] && factoriesData[selectedFactory].sections[newSectionName]) {
+                        alert('Process section already exists');
+                        return;
+                    }
+                    
+                    const factoryId = factoriesData[selectedFactory].id;
+                    
+                    response = await fetch(`/api/factories/${factoryId}/sections`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            name: newSectionName,
+                            process_name: newSectionName,
+                            process_type: "Product",
+                            measurement_method: "Measurement Method:",
+                            time_unit: "secs",
+                            takt_time: "Takt Time",
+                            prepared_by: "Chris Coles",
+                            process_data: [],
+                            stations: []
+                        })
+                    });
+                    const result = await response.json();
+                    if (result.success) {
+                        if (!factoriesData[selectedFactory]) {
+                            factoriesData[selectedFactory] = {
+                                id: factoryId,
+                                sections: {}
+                            };
+                        }
+                        factoriesData[selectedFactory].sections[newSectionName] = {
+                            id: result.section_id,
+                            process_name: newSectionName
+                        };
+                    } else {
+                        alert(result.message);
+                        return;
+                    }
+                } else if (currentSectionMode === 'edit') {
+                    const selectedFactory = factorySelect.value;
+                    const factoryId = factoriesData[selectedFactory].id;
+                    const sectionId = factoriesData[selectedFactory].sections[originalSectionName].id;
+                    
+                    if (newSectionName !== originalSectionName && factoriesData[selectedFactory].sections[newSectionName]) {
+                        alert('Process section name already exists');
+                        return;
+                    }
+                    
+                    if (newSectionName !== originalSectionName) {
+                        response = await fetch(`/api/sections/${sectionId}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                factory: factoryId,
+                                name: newSectionName,
+                                process_name: newSectionName,
+                                process_type: "Product",
+                                measurement_method: "Measurement Method:",
+                                time_unit: "secs", 
+                                takt_time: "Takt Time",
+                                prepared_by: "Chris Coles"
+                            })
+                        });
+                        const result = await response.json();
+                        if (!result.success) {
+                            alert(result.message);
+                            return;
+                        }
+                        
+                        const sectionData = factoriesData[selectedFactory].sections[originalSectionName];
+                        delete factoriesData[selectedFactory].sections[originalSectionName];
+                        factoriesData[selectedFactory].sections[newSectionName] = sectionData;
+                        factoriesData[selectedFactory].sections[newSectionName].id = sectionId;
+                    }
+                }
+
+                refreshFactorySelect();
+                factorySelect.value = selectedFactory;
+                populateProcessSections(selectedFactory);
+                processSectionSelect.value = newSectionName;
+                updateSelectionSummary();
+                closeSectionModal();
+            } catch (error) {
+                console.error('Error saving section:', error);
+                alert('Error saving section: ' + error.message);
+            }
+        }
+
+        async function deleteSection() {
+            const selectedFactory = factorySelect.value;
+            const selectedSection = processSectionSelect.value;
+
+            if (!selectedFactory) {
+                alert('Please select a factory first');
+                return;
+            }
+
+            if (!selectedSection) {
+                alert('Please select a process section to delete');
+                return;
+            }
+
+            const sectionId = factoriesData[selectedFactory].sections[selectedSection].id;
+
+            if (confirm(`Are you sure you want to delete "${selectedSection}"?`)) {
+                try {
+                    const response = await fetch(`/api/sections/${sectionId}`, {
+                        method: 'DELETE'
+                    });
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        delete factoriesData[selectedFactory].sections[selectedSection];
+                        populateProcessSections(selectedFactory);
+                        selectionSummary.classList.add('hidden');
+                        openToolBtn.disabled = true;
+                    } else {
+                        alert(result.message);
+                    }
+                } catch (error) {
+                    console.error('Error deleting section:', error);
+                    alert('Error deleting section: ' + error.message);
+                }
+            }
+        }
+
+        function updateFactoriesData() {
+            const result = {};
+            Object.keys(allFactoriesData).forEach(factory => {
+                result[factory] = {};
+                Object.keys(allFactoriesData[factory]).forEach(section => {
+                    result[factory][section] = allFactoriesData[factory][section].process_name;
+                });
+            });
+            Object.assign(factoriesData, result);
+        }
+
+        function refreshFactorySelect() {
+            const currentValue = factorySelect.value;
+            factorySelect.innerHTML = '<option value="">-- Select Factory --</option>';
+            Object.keys(factoriesData).forEach(factory => {
+                const option = document.createElement('option');
+                option.value = factory;
+                option.textContent = factory;
+                factorySelect.appendChild(option);
+            });
+            if (factoriesData[currentValue]) {
+                factorySelect.value = currentValue;
+            }
+        }
+
+        async function saveDataToFile() {
+            try {
+                const response = await fetch(`${window.location.origin}/api/save-data`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(allFactoriesData)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log('Data saved successfully');
+                } else {
+                    console.error('Failed to save data:', result.message);
+                    alert('Failed to save data: ' + result.message);
+                }
+            } catch (error) {
+                console.error('Error saving data:', error);
+                alert('Error saving data: ' + error.message);
+            }
+        }
+
+        checkAuth();
+
+        function openUserModal() {
+            document.getElementById('profileUsername').value = currentUser.username;
+            document.getElementById('profileEmail').value = currentUser.email || '';
+            document.getElementById('userModal').classList.remove('hidden');
+        }
+
+        function closeUserModal() {
+            document.getElementById('userModal').classList.add('hidden');
+            document.getElementById('currentPassword').value = '';
+            document.getElementById('newPassword').value = '';
+            document.getElementById('confirmPassword').value = '';
+        }
+
+        async function changePassword(event) {
+            event.preventDefault();
+            
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (newPassword !== confirmPassword) {
+                alert('New passwords do not match');
+                return;
+            }
+            
+            if (newPassword.length < 6) {
+                alert('Password must be at least 6 characters long');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/change-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        current_password: currentPassword,
+                        new_password: newPassword
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert('Password changed successfully');
+                    closeUserModal();
+                } else {
+                    alert(result.message);
+                }
+            } catch (error) {
+                console.error('Error changing password:', error);
+                alert('Error changing password: ' + error.message);
+            }
+        }
+    </script>
+
+    <div id="factoryModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
+            <div class="flex items-center justify-between mb-6">
+                <h2 id="factoryModalTitle" class="text-2xl font-bold text-gray-900">Add Factory</h2>
+                <button onclick="closeFactoryModal()" class="text-gray-500 hover:text-gray-700 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="factoryForm" onsubmit="saveFactory(event)">
+                <div class="mb-6">
+                    <label class="block text-lg font-semibold text-gray-700 mb-2">Factory Name</label>
+                    <input type="text" id="factoryNameInput" required
+                           class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                           placeholder="Enter factory name">
+                </div>
+                <div class="flex gap-4">
+                    <button type="button" onclick="closeFactoryModal()"
+                            class="flex-1 px-6 py-3 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                        Save
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="sectionModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
+            <div class="flex items-center justify-between mb-6">
+                <h2 id="sectionModalTitle" class="text-2xl font-bold text-gray-900">Add Process Section</h2>
+                <button onclick="closeSectionModal()" class="text-gray-500 hover:text-gray-700 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form id="sectionForm" onsubmit="saveSection(event)">
+                <div class="mb-6">
+                    <label class="block text-lg font-semibold text-gray-700 mb-2">Process Section Name</label>
+                    <input type="text" id="sectionNameInput" required
+                           class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                           placeholder="Enter process section name">
+                </div>
+                <div class="flex gap-4">
+                    <button type="button" onclick="closeSectionModal()"
+                            class="flex-1 px-6 py-3 bg-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-400 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                        Save
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="userModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-gray-900">User Profile</h2>
+                <button onclick="closeUserModal()" class="text-gray-500 hover:text-gray-700 text-2xl">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                    <input type="text" id="profileUsername" readonly
+                           class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-gray-100 text-gray-600">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input type="email" id="profileEmail" readonly
+                           class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-gray-100 text-gray-600">
+                </div>
+                <div class="pt-4 border-t">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">Change Password</h3>
+                    <form onsubmit="changePassword(event)">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                            <input type="password" id="currentPassword" required
+                                   class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                            <input type="password" id="newPassword" required minlength="6"
+                                   class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                            <input type="password" id="confirmPassword" required minlength="6"
+                                   class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        </div>
+                        <button type="submit"
+                                class="w-full px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                            Change Password
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
