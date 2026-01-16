@@ -10,8 +10,8 @@ const allFactoriesData = {
             "process_data": [
                 {
                     "task_name": "Warm pressing machine",
-                    "work_type_desc": "Waste - Warm pressing machine",
-                    "work_type": "Waste",
+                    "work_type_desc": "NVA - Warm pressing machine",
+                    "work_type": "NVA",
                     "times": {
                         "Setup Parts": 5
                     },
@@ -19,8 +19,8 @@ const allFactoriesData = {
                 },
                 {
                     "task_name": "Clean press tool",
-                    "work_type_desc": "NVA - Clean press tool",
-                    "work_type": "NVA",
+                    "work_type_desc": "NNVA - Clean press tool",
+                    "work_type": "NNVA",
                     "times": {
                         "Setup Parts": 10
                     },
@@ -28,8 +28,8 @@ const allFactoriesData = {
                 },
                 {
                     "task_name": "Setup next pressings",
-                    "work_type_desc": "NVA - Setup next pressings",
-                    "work_type": "NVA",
+                    "work_type_desc": "NNVA - Setup next pressings",
+                    "work_type": "NNVA",
                     "times": {
                         "Setup Parts": 5
                     },
@@ -37,8 +37,8 @@ const allFactoriesData = {
                 },
                 {
                     "task_name": "Align rivnuts",
-                    "work_type_desc": "NVA - Align rivnuts",
-                    "work_type": "NVA",
+                    "work_type_desc": "NNVA - Align rivnuts",
+                    "work_type": "NNVA",
                     "times": {
                         "Setup Parts": 9
                     },
@@ -46,8 +46,8 @@ const allFactoriesData = {
                 },
                 {
                     "task_name": "Align studs",
-                    "work_type_desc": "NVA - Align studs",
-                    "work_type": "NVA",
+                    "work_type_desc": "NNVA - Align studs",
+                    "work_type": "NNVA",
                     "times": {
                         "Setup Parts": 9
                     },
@@ -73,8 +73,8 @@ const allFactoriesData = {
                 },
                 {
                     "task_name": "Deactivate press",
-                    "work_type_desc": "NVA - Deactivate press",
-                    "work_type": "NVA",
+                    "work_type_desc": "NNVA - Deactivate press",
+                    "work_type": "NNVA",
                     "times": {
                         "Produce Parts": 9
                     },
@@ -209,8 +209,8 @@ const allFactoriesData = {
             "process_data": [
                 {
                     "task_name": "Prepare components",
-                    "work_type_desc": "NVA - Prepare components",
-                    "work_type": "NVA",
+                    "work_type_desc": "NNVA - Prepare components",
+                    "work_type": "NNVA",
                     "times": {
                         "Station 1": 15
                     },
@@ -297,8 +297,8 @@ const allFactoriesData = {
             "process_data": [
                 {
                     "task_name": "Clean product",
-                    "work_type_desc": "NVA - Clean product",
-                    "work_type": "NVA",
+                    "work_type_desc": "NNVA - Clean product",
+                    "work_type": "NNVA",
                     "times": {
                         "Packaging": 8
                     },
@@ -412,8 +412,8 @@ const allFactoriesData = {
                 },
                 {
                     "task_name": "Grind edges",
-                    "work_type_desc": "NVA - Grind edges",
-                    "work_type": "NVA",
+                    "work_type_desc": "NNVA - Grind edges",
+                    "work_type": "NNVA",
                     "times": {
                         "Finishing": 15
                     },
@@ -483,8 +483,8 @@ const allFactoriesData = {
                 },
                 {
                     "task_name": "Documentation",
-                    "work_type_desc": "NVA - Documentation",
-                    "work_type": "NVA",
+                    "work_type_desc": "NNVA - Documentation",
+                    "work_type": "NNVA",
                     "times": {
                         "QC Station 3": 12
                     },
@@ -518,8 +518,8 @@ const allFactoriesData = {
             "process_data": [
                 {
                     "task_name": "Load raw materials",
-                    "work_type_desc": "NVA - Load raw materials",
-                    "work_type": "NVA",
+                    "work_type_desc": "NNVA - Load raw materials",
+                    "work_type": "NNVA",
                     "times": {
                         "Line Start": 12
                     },
@@ -580,8 +580,8 @@ const allFactoriesData = {
             "process_data": [
                 {
                     "task_name": "Setup equipment",
-                    "work_type_desc": "NVA - Setup equipment",
-                    "work_type": "NVA",
+                    "work_type_desc": "NNVA - Setup equipment",
+                    "work_type": "NNVA",
                     "times": {
                         "Setup": 15
                     },
@@ -616,8 +616,8 @@ const allFactoriesData = {
                 },
                 {
                     "task_name": "Cleanup",
-                    "work_type_desc": "NVA - Cleanup",
-                    "work_type": "NVA",
+                    "work_type_desc": "NNVA - Cleanup",
+                    "work_type": "NNVA",
                     "times": {
                         "Cleanup": 8
                     },
@@ -640,8 +640,8 @@ const allFactoriesData = {
             "process_data": [
                 {
                     "task_name": "Initialize system",
-                    "work_type_desc": "NVA - Initialize system",
-                    "work_type": "NVA",
+                    "work_type_desc": "NNVA - Initialize system",
+                    "work_type": "NNVA",
                     "times": {
                         "Init": 10
                     },
@@ -676,8 +676,8 @@ const allFactoriesData = {
                 },
                 {
                     "task_name": "Shutdown system",
-                    "work_type_desc": "NVA - Shutdown system",
-                    "work_type": "NVA",
+                    "work_type_desc": "NNVA - Shutdown system",
+                    "work_type": "NNVA",
                     "times": {
                         "Shutdown": 8
                     },
@@ -704,8 +704,8 @@ const allFactoriesData = {
             "process_data": [
                 {
                     "task_name": "Warm pressing machine",
-                    "work_type_desc": "Waste - Warm pressing machine",
-                    "work_type": "Waste",
+                    "work_type_desc": "NVA - Warm pressing machine",
+                    "work_type": "NVA",
                     "times": {
                         "Produce Parts": 6
                     },
@@ -714,8 +714,8 @@ const allFactoriesData = {
                 },
                 {
                     "task_name": "Setup next pressings",
-                    "work_type_desc": "NVA - Setup next pressings",
-                    "work_type": "NVA",
+                    "work_type_desc": "NNVA - Setup next pressings",
+                    "work_type": "NNVA",
                     "times": {
                         "Produce Parts": 5
                     },
@@ -734,8 +734,8 @@ const allFactoriesData = {
                 },
                 {
                     "task_name": "Align rivnuts",
-                    "work_type_desc": "NVA - Align rivnuts",
-                    "work_type": "NVA",
+                    "work_type_desc": "NNVA - Align rivnuts",
+                    "work_type": "NNVA",
                     "times": {
                         "Gear Assembly": 9
                     },
@@ -744,8 +744,8 @@ const allFactoriesData = {
                 },
                 {
                     "task_name": "Align studs",
-                    "work_type_desc": "NVA - Align studs",
-                    "work_type": "NVA",
+                    "work_type_desc": "NNVA - Align studs",
+                    "work_type": "NNVA",
                     "times": {
                         "Produce Parts": 9
                     },
@@ -764,8 +764,8 @@ const allFactoriesData = {
                 },
                 {
                     "task_name": "Deactivate press",
-                    "work_type_desc": "NVA - Deactivate press",
-                    "work_type": "NVA",
+                    "work_type_desc": "NNVA - Deactivate press",
+                    "work_type": "NNVA",
                     "times": {
                         "Mount Wheels": 9
                     },
@@ -864,8 +864,8 @@ const allFactoriesData = {
                 },
                 {
                     "task_name": "Assembly1",
-                    "work_type_desc": "Waste - Assembly1",
-                    "work_type": "Waste",
+                    "work_type_desc": "NVA - Assembly1",
+                    "work_type": "NVA",
                     "times": {
                         "Setup Parts": 7
                     },
@@ -894,8 +894,8 @@ const allFactoriesData = {
                 },
                 {
                     "task_name": "test1.2",
-                    "work_type_desc": "Waste - test1.2",
-                    "work_type": "Waste",
+                    "work_type_desc": "NVA - test1.2",
+                    "work_type": "NVA",
                     "times": {
                         "Buff Three Parts": 8
                     },

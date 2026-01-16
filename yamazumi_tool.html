@@ -24,14 +24,14 @@
                 "total_cycle_time": 0
             },
             "process_data": [
-                {"task_name": "Warm pressing machine", "work_type_desc": "Waste - Warm pressing machine", "work_type": "Waste", "times": {"Setup Parts": 5}, "total_time": 5},
-                {"task_name": "Clean press tool", "work_type_desc": "NVA - Clean press tool", "work_type": "NVA", "times": {"Setup Parts": 10}, "total_time": 10},
-                {"task_name": "Setup next pressings", "work_type_desc": "NVA - Setup next pressings", "work_type": "NVA", "times": {"Setup Parts": 5}, "total_time": 5},
-                {"task_name": "Align rivnuts", "work_type_desc": "NVA - Align rivnuts", "work_type": "NVA", "times": {"Setup Parts": 9}, "total_time": 9},
-                {"task_name": "Align studs", "work_type_desc": "NVA - Align studs", "work_type": "NVA", "times": {"Setup Parts": 9}, "total_time": 9},
+                {"task_name": "Warm pressing machine", "work_type_desc": "NVA - Warm pressing machine", "work_type": "NVA", "times": {"Setup Parts": 5}, "total_time": 5},
+                {"task_name": "Clean press tool", "work_type_desc": "NNVA - Clean press tool", "work_type": "NNVA", "times": {"Setup Parts": 10}, "total_time": 10},
+                {"task_name": "Setup next pressings", "work_type_desc": "NNVA - Setup next pressings", "work_type": "NNVA", "times": {"Setup Parts": 5}, "total_time": 5},
+                {"task_name": "Align rivnuts", "work_type_desc": "NNVA - Align rivnuts", "work_type": "NNVA", "times": {"Setup Parts": 9}, "total_time": 9},
+                {"task_name": "Align studs", "work_type_desc": "NNVA - Align studs", "work_type": "NNVA", "times": {"Setup Parts": 9}, "total_time": 9},
                 {"task_name": "Load plate", "work_type_desc": "VA - Load plate", "work_type": "VA", "times": {"Setup Parts": 10}, "total_time": 10},
                 {"task_name": "Activate press", "work_type_desc": "VA - Activate press", "work_type": "VA", "times": {"Produce Parts": 6}, "total_time": 6},
-                {"task_name": "Deactivate press", "work_type_desc": "NVA - Deactivate press", "work_type": "NVA", "times": {"Produce Parts": 9}, "total_time": 9},
+                {"task_name": "Deactivate press", "work_type_desc": "NNVA - Deactivate press", "work_type": "NNVA", "times": {"Produce Parts": 9}, "total_time": 9},
                 {"task_name": "Remove plate", "work_type_desc": "VA - Remove plate", "work_type": "VA", "times": {"Produce Parts": 8}, "total_time": 8},
                 {"task_name": "Inspect plate", "work_type_desc": "VA - Inspect plate", "work_type": "VA", "times": {"Produce Parts": 7}, "total_time": 7},
                 {"task_name": "Package plate", "work_type_desc": "VA - Package plate", "work_type": "VA", "times": {"Produce Parts": 10}, "total_time": 10},
@@ -47,8 +47,8 @@
             ],
             "stations": ["Setup Parts", "Produce Parts", "Buff Three Parts", "Mount Wheels", "Attach Bracket", "Gear Assembly", " Shaft Assembly"],
             "work_type_stats": {
-                "Waste": {"count": 6, "total_time": 43},
-                "NVA": {"count": 13, "total_time": 109},
+                "NVA": {"count": 6, "total_time": 43},
+                "NNVA": {"count": 13, "total_time": 109},
                 "VA": {"count": 23, "total_time": 167},
                 "<Select>": {"count": 18, "total_time": 0}
             },
@@ -66,8 +66,8 @@
         // 工作类型颜色映射
         const workTypeColors = {
             "VA": "#10B981", // 绿色 - 增值
-            "NVA": "#F59E0B", // 黄色 - 非增值
-            "Waste": "#EF4444", // 红色 - 浪费
+            "NNVA": "#F59E0B", // 黄色 - 必要的非增值
+            "NVA": "#EF4444", // 红色 - 非增值
             "<Select>": "#6B7280" // 灰色 - 未分类
         };
 
@@ -215,14 +215,11 @@
                     <button id="backBtn" class="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors">
                         <i class="fas fa-arrow-left mr-2"></i>Back
                     </button>
-                    <button id="saveBtn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
-                        <i class="fas fa-save mr-2"></i>Save
-                    </button>
                     <button id="exportBtn" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition-colors">
                         <i class="fas fa-file-export mr-2"></i>Export
                     </button>
                     <button id="importBtn" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">
-                        <i class="fas fa-file-import mr-2"></i>Import
+                        <i class="fas fa-file-import mr-2"></i>Import Excel/CSV
                     </button>
                 </div>
             </div>
@@ -378,8 +375,8 @@
                                 class="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                             <option value="">All Work Types</option>
                             <option value="VA">VA</option>
+                            <option value="NNVA">NNVA</option>
                             <option value="NVA">NVA</option>
-                            <option value="Waste">Waste</option>
                         </select>
                         <select id="filterStation"
                                 class="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
@@ -461,7 +458,7 @@
                                 <i class="fas fa-exclamation-triangle text-yellow-600"></i>
                             </div>
                             <div class="ml-4">
-                                <p class="text-sm font-medium text-yellow-700">Non-Value Added</p>
+                                <p class="text-sm font-medium text-yellow-700">NNVA</p>
                                 <p class="text-2xl font-semibold text-yellow-900">109s</p>
                                 <p class="text-xs text-yellow-600">13 tasks</p>
                             </div>
@@ -473,7 +470,7 @@
                                 <i class="fas fa-times-circle text-red-600"></i>
                             </div>
                             <div class="ml-4">
-                                <p class="text-sm font-medium text-red-700">Waste</p>
+                                <p class="text-sm font-medium text-red-700">NVA</p>
                                 <p class="text-2xl font-semibold text-red-900">43s</p>
                                 <p class="text-xs text-red-600">6 tasks</p>
                             </div>
@@ -493,27 +490,7 @@
                     </div>
                 </div>
                 
-                <div class="bg-gray-50 p-4 rounded-lg">
-                    <h3 class="text-md font-semibold text-gray-900 mb-3">Key Insights</h3>
-                    <ul class="space-y-2 text-sm text-gray-700">
-                        <li class="flex items-start">
-                            <i class="fas fa-arrow-right text-blue-600 mt-1 mr-2 text-xs"></i>
-                            <span><strong>VA Ratio:</strong> 52.4% of total time is value-added, which is reasonable but can be improved.</span>
-                        </li>
-                        <li class="flex items-start">
-                            <i class="fas fa-arrow-right text-blue-600 mt-1 mr-2 text-xs"></i>
-                            <span><strong>Opportunity Areas:</strong> Focus on reducing NVA (34.2%) and Waste (13.5%) activities.</span>
-                        </li>
-                        <li class="flex items-start">
-                            <i class="fas fa-arrow-right text-blue-600 mt-1 mr-2 text-xs"></i>
-                            <span><strong>Bottleneck:</strong> Attach Bracket station has the highest time (61s), consider optimizing this step.</span>
-                        </li>
-                        <li class="flex items-start">
-                            <i class="fas fa-arrow-right text-blue-600 mt-1 mr-2 text-xs"></i>
-                            <span><strong>Balance:</strong> Station times vary between 23s-61s, suggesting potential for line balancing.</span>
-                        </li>
-                    </ul>
-                </div>
+
             </div>
         </div>
     </div>
@@ -691,6 +668,7 @@
             renderTasksTable(yamazumiData.process_data);
             renderStationsList();
             updateStationSelect();
+            updateStatisticsDisplay();
             
             document.getElementById('filterTaskName').addEventListener('input', filterTasks);
             document.getElementById('filterWorkType').addEventListener('change', filterTasks);
@@ -702,10 +680,8 @@
                 window.location.href = 'index.html';
             });
             
-            document.getElementById('saveBtn').addEventListener('click', saveSectionData);
             document.getElementById('exportBtn').addEventListener('click', exportData);
             document.getElementById('importBtn').addEventListener('click', importData);
-            document.getElementById('importFileInput').addEventListener('change', handleFileImport);
             
             checkAuth();
             loadSectionData();
@@ -886,8 +862,8 @@
                 let badgeClass = '';
                 switch(task.work_type) {
                     case 'VA': badgeClass = 'bg-green-100 text-green-800'; break;
-                    case 'NVA': badgeClass = 'bg-yellow-100 text-yellow-800'; break;
-                    case 'Waste': badgeClass = 'bg-red-100 text-red-800'; break;
+                    case 'NNVA': badgeClass = 'bg-yellow-100 text-yellow-800'; break;
+                    case 'NVA': badgeClass = 'bg-red-100 text-red-800'; break;
                     default: badgeClass = 'bg-gray-100 text-gray-800';
                 }
                 
@@ -966,8 +942,8 @@
             // 重置统计数据
             yamazumiData.work_type_stats = {
                 "VA": {"count": 0, "total_time": 0},
+                "NNVA": {"count": 0, "total_time": 0},
                 "NVA": {"count": 0, "total_time": 0},
-                "Waste": {"count": 0, "total_time": 0},
                 "<Select>": {"count": 0, "total_time": 0}
             };
             
@@ -991,6 +967,62 @@
                     }
                 });
             });
+            
+            // 更新页面显示
+            updateStatisticsDisplay();
+        }
+        
+        function updateStatisticsDisplay() {
+            // 获取统计数据
+            const vaStats = yamazumiData.work_type_stats["VA"] || {count: 0, total_time: 0};
+            const nnvaStats = yamazumiData.work_type_stats["NNVA"] || {count: 0, total_time: 0};
+            const nvaStats = yamazumiData.work_type_stats["NVA"] || {count: 0, total_time: 0};
+            
+            // 计算总时间
+            const totalTime = vaStats.total_time + nnvaStats.total_time + nvaStats.total_time;
+            
+            // 更新VA显示
+            const vaTimeElement = document.querySelector('.text-2xl.font-semibold.text-green-900');
+            if (vaTimeElement) {
+                vaTimeElement.textContent = vaStats.total_time + 's';
+            }
+            const vaCountElement = document.querySelector('.text-xs.text-green-600');
+            if (vaCountElement) {
+                vaCountElement.textContent = vaStats.count + ' tasks';
+            }
+            
+            // 更新NNVA显示
+            const nnvaTimeElement = document.querySelector('.text-2xl.font-semibold.text-yellow-900');
+            if (nnvaTimeElement) {
+                nnvaTimeElement.textContent = nnvaStats.total_time + 's';
+            }
+            const nnvaCountElement = document.querySelector('.text-xs.text-yellow-600');
+            if (nnvaCountElement) {
+                nnvaCountElement.textContent = nnvaStats.count + ' tasks';
+            }
+            
+            // 更新NVA显示
+            const nvaTimeElement = document.querySelector('.text-2xl.font-semibold.text-red-900');
+            if (nvaTimeElement) {
+                nvaTimeElement.textContent = nvaStats.total_time + 's';
+            }
+            const nvaCountElement = document.querySelector('.text-xs.text-red-600');
+            if (nvaCountElement) {
+                nvaCountElement.textContent = nvaStats.count + ' tasks';
+            }
+            
+            // 更新总时间显示
+            const totalTimeElement = document.querySelector('.text-2xl.font-semibold.text-blue-900');
+            if (totalTimeElement) {
+                totalTimeElement.textContent = totalTime + 's';
+            }
+            
+            // 更新总时间换算
+            const totalMinutesElement = document.querySelector('.text-xs.text-blue-600');
+            if (totalMinutesElement) {
+                const minutes = Math.round(totalTime / 60 * 10) / 10;
+                totalMinutesElement.textContent = '~' + minutes + ' minutes';
+            }
         }
 
         function exportData() {
@@ -1022,7 +1054,344 @@
         }
 
         function importData() {
-            const fileInput = document.getElementById('importFileInput');
+            // 创建文件选择器，允许选择Excel和CSV文件
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.xlsx,.xls,.csv';
+            
+            fileInput.onchange = function(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                        
+                        if (jsonData.length < 2) {
+                            alert('File is empty or invalid format');
+                            return;
+                        }
+
+                        // 检查文件格式：标准CSV格式还是Excel模板格式
+                        const headers = jsonData[0];
+                        const isStandardCSV = headers && headers.length >= 4 && 
+                                             headers.some(h => h && h.toLowerCase().includes('task')) &&
+                                             headers.some(h => h && h.toLowerCase().includes('work type')) &&
+                                             headers.some(h => h && h.toLowerCase().includes('station')) &&
+                                             headers.some(h => h && h.toLowerCase().includes('time'));
+
+                        let importedTasks = [];
+                        let importedStations = new Set();
+
+                        if (isStandardCSV) {
+                            // 标准CSV格式处理 - 直接导入
+                            const rows = jsonData.slice(1);
+                            
+                            const taskNameIndex = headers.findIndex(h => h && h.toLowerCase().includes('task'));
+                            const workTypeIndex = headers.findIndex(h => h && h.toLowerCase().includes('work type'));
+                            const stationIndex = headers.findIndex(h => h && h.toLowerCase().includes('station'));
+                            const timeIndex = headers.findIndex(h => h && h.toLowerCase().includes('time'));
+                            const commentsIndex = headers.findIndex(h => h && h.toLowerCase().includes('comment'));
+
+                            rows.forEach(row => {
+                                if (!row[taskNameIndex]) return;
+
+                                const taskName = row[taskNameIndex];
+                                const workType = row[workTypeIndex] || '<Select>';
+                                const station = row[stationIndex] || 'Default Station';
+                                const time = parseFloat(row[timeIndex]) || 0;
+                                const comments = commentsIndex !== -1 ? (row[commentsIndex] || '') : '';
+
+                                const workTypeDesc = `${workType} - ${taskName}`;
+                                
+                                importedTasks.push({
+                                    task_name: taskName,
+                                    work_type_desc: workTypeDesc,
+                                    work_type: workType,
+                                    times: { [station]: time },
+                                    total_time: time,
+                                    comments: comments
+                                });
+
+                                importedStations.add(station);
+                            });
+                        } else {
+                            // Excel模板格式处理 - 自动转换为CSV格式并导入
+                            // 查找数据开始行（包含"Task"的行）
+                            let dataStartRow = -1;
+                            for (let i = 0; i < jsonData.length; i++) {
+                                const row = jsonData[i];
+                                if (row && row.length > 0) {
+                                    // 清理字符串并检查是否包含Task
+                                    const firstCell = String(row[0]).trim();
+                                    const secondCell = row.length > 1 ? String(row[1]).trim() : '';
+                                    
+                                    // 主要检查第一个单元格是否为Task
+                                    if (firstCell === 'Task') {
+                                        dataStartRow = i;
+                                        break;
+                                    }
+                                    
+                                    // 如果第一个单元格包含Task，也认为是数据表开始
+                                    if (firstCell.includes('Task')) {
+                                        dataStartRow = i;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (dataStartRow === -1) {
+                                alert('Invalid Excel template format. Could not find data table.');
+                                return;
+                            }
+
+                            // 获取工作站列表（第7行的数据）
+                            const stationRow = jsonData[dataStartRow];
+                            const stations = stationRow.slice(2).filter(station => station && station !== '<fill in>');
+
+                            // 处理数据行
+                            for (let i = dataStartRow + 1; i < jsonData.length; i++) {
+                                const row = jsonData[i];
+                                if (!row || row.length < 3) continue;
+
+                                // 任务名称可能在第一个或第二个单元格
+                                let taskName = row[0] || row[1] || '';
+                                let workTypeDesc = row[1] || row[2] || '';
+                                let workType = row[2] || row[3] || '<Select>';
+                                
+                                // 如果第一个单元格为空，但第二个单元格有值，说明任务名称在第二个单元格
+                                if (!row[0] && row[1]) {
+                                    taskName = row[1];
+                                    workTypeDesc = row[2] || '';
+                                    workType = row[3] || '<Select>';
+                                }
+                                
+                                // 如果任务名称为空，跳过此行
+                                if (!taskName) continue;
+
+                                // 智能检测时间数据的起始列
+                                let timeStartColumn = 2; // 默认从第3列开始
+                                
+                                // 检查是否有时间数据在第11列（针对缺失的任务）
+                                if (row.length > 10 && row[10] && parseFloat(row[10]) > 0) {
+                                    timeStartColumn = 10;
+                                }
+                                // 检查是否有时间数据在第7列（针对其他任务）
+                                else if (row.length > 6 && row[6] && parseFloat(row[6]) > 0) {
+                                    timeStartColumn = 6;
+                                }
+                                // 检查是否有时间数据在第3列（标准位置）
+                                else if (row.length > 2 && row[2] && parseFloat(row[2]) > 0) {
+                                    timeStartColumn = 2;
+                                }
+                                
+                                // 处理每个工作站的时间数据
+                                for (let j = 0; j < stations.length; j++) {
+                                    const station = stations[j];
+                                    const timeIndex = j + timeStartColumn;
+                                    const time = parseFloat(row[timeIndex]) || 0;
+                                    
+                                    if (time > 0) {
+                                        importedTasks.push({
+                                            task_name: taskName,
+                                            work_type_desc: workTypeDesc,
+                                            work_type: workType,
+                                            times: { [station]: time },
+                                            total_time: time,
+                                            comments: ''
+                                        });
+                                        
+                                        importedStations.add(station);
+                                    }
+                                }
+                            }
+                        }
+
+                        if (importedTasks.length === 0) {
+                            alert('No valid tasks found in the file');
+                            return;
+                        }
+
+                        if (confirm(`Found ${importedTasks.length} tasks. Do you want to import them?\n\nThis will replace all existing tasks.`)) {
+                            yamazumiData.process_data = importedTasks;
+                            
+                            // 更新工作站列表
+                            yamazumiData.stations = Array.from(importedStations);
+
+                            updateStatistics();
+                            createCharts();
+                            renderTasksTable(yamazumiData.process_data);
+                            renderStationsList();
+                            saveSectionData();
+                            
+                            alert(`Successfully imported ${importedTasks.length} tasks!`);
+                        }
+                    } catch (error) {
+                        console.error('Import error:', error);
+                        alert('Error importing file: ' + error.message);
+                    }
+                };
+
+                reader.readAsArrayBuffer(file);
+            };
+            
+            fileInput.click();
+        }
+
+        function convertExcelToCSV() {
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = '.xlsx,.xls';
+            
+            fileInput.onchange = function(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        
+                        const firstSheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[firstSheetName];
+                        
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                        
+                        if (jsonData.length < 2) {
+                            alert('File is empty or invalid format');
+                            return;
+                        }
+
+                        // 查找数据开始行（包含"Task"的行）
+                        let dataStartRow = -1;
+                        console.log('开始查找数据表，总行数:', jsonData.length);
+                        
+                        for (let i = 0; i < jsonData.length; i++) {
+                            const row = jsonData[i];
+                            if (row && row.length > 0) {
+                                // 清理字符串并检查是否包含Task
+                                const firstCell = String(row[0]).trim();
+                                const secondCell = row.length > 1 ? String(row[1]).trim() : '';
+                                
+                                console.log(`行${i}: firstCell="${firstCell}" (原始: "${row[0]}"), secondCell="${secondCell}" (原始: "${row[1]}")`);
+                                
+                                // 主要检查第一个单元格是否为Task
+                                if (firstCell === 'Task') {
+                                    dataStartRow = i;
+                                    console.log('找到数据表开始行（Task匹配）:', i);
+                                    break;
+                                }
+                                
+                                // 如果第一个单元格包含Task，也认为是数据表开始
+                                if (firstCell.includes('Task')) {
+                                    dataStartRow = i;
+                                    console.log('找到数据表开始行（包含Task）:', i);
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (dataStartRow === -1) {
+                            console.log('未找到数据表，前10行数据:', jsonData.slice(0, 10));
+                            alert('Invalid Excel template format. Could not find data table.');
+                            return;
+                        }
+
+                        // 获取工作站列表（第7行的数据）
+                        const stationRow = jsonData[dataStartRow];
+                        const stations = stationRow.slice(2).filter(station => station && station !== '<fill in>');
+
+                        // 创建CSV数据
+                        let csvData = [];
+                        csvData.push(['Task Name', 'Work Type', 'Station', 'Time (seconds)', 'Comments']);
+
+                        // 处理数据行
+                        for (let i = dataStartRow + 1; i < jsonData.length; i++) {
+                            const row = jsonData[i];
+                            if (!row || row.length < 3) continue;
+
+                            // 任务名称可能在第一个或第二个单元格
+                            let taskName = row[0] || row[1] || '';
+                            let workTypeDesc = row[1] || row[2] || '';
+                            let workType = row[2] || row[3] || '<Select>';
+                            
+                            // 如果第一个单元格为空，但第二个单元格有值，说明任务名称在第二个单元格
+                            if (!row[0] && row[1]) {
+                                taskName = row[1];
+                                workTypeDesc = row[2] || '';
+                                workType = row[3] || '<Select>';
+                            }
+                            
+                            // 如果任务名称为空，跳过此行
+                            if (!taskName) continue;
+
+                            // 智能检测时间数据的起始列
+                            let timeStartColumn = 2; // 默认从第3列开始
+                            
+                            // 检查是否有时间数据在第11列（针对缺失的任务）
+                            if (row.length > 10 && row[10] && parseFloat(row[10]) > 0) {
+                                timeStartColumn = 10;
+                            }
+                            // 检查是否有时间数据在第7列（针对其他任务）
+                            else if (row.length > 6 && row[6] && parseFloat(row[6]) > 0) {
+                                timeStartColumn = 6;
+                            }
+                            // 检查是否有时间数据在第3列（标准位置）
+                            else if (row.length > 2 && row[2] && parseFloat(row[2]) > 0) {
+                                timeStartColumn = 2;
+                            }
+                            
+                            console.log(`任务"${taskName}"的时间数据起始列: ${timeStartColumn}`);
+                            
+                            // 处理每个工作站的时间数据
+                            for (let j = 0; j < stations.length; j++) {
+                                const station = stations[j];
+                                const timeIndex = j + timeStartColumn;
+                                const time = parseFloat(row[timeIndex]) || 0;
+                                
+                                if (time > 0) {
+                                    csvData.push([taskName, workType, station, time, '']);
+                                }
+                            }
+                        }
+
+                        // 创建CSV字符串
+                        let csvContent = '';
+                        csvData.forEach(row => {
+                            csvContent += row.map(field => `"${field}"`).join(',') + '\n';
+                        });
+
+                        // 创建下载链接
+                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                        const link = document.createElement('a');
+                        const url = URL.createObjectURL(blob);
+                        link.setAttribute('href', url);
+                        link.setAttribute('download', 'converted_data.csv');
+                        link.style.visibility = 'hidden';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        
+                        alert('Excel文件已成功转换为CSV格式并下载！');
+                    } catch (error) {
+                        console.error('Conversion error:', error);
+                        alert('Error converting file: ' + error.message);
+                    }
+                };
+
+                reader.readAsArrayBuffer(file);
+            };
+            
             fileInput.click();
         }
 
@@ -1047,45 +1416,138 @@
                         return;
                     }
 
+                    // 检查文件格式：标准CSV格式还是Excel模板格式
                     const headers = jsonData[0];
-                    const rows = jsonData.slice(1);
-                    
-                    const taskNameIndex = headers.findIndex(h => h && h.toLowerCase().includes('task'));
-                    const workTypeIndex = headers.findIndex(h => h && h.toLowerCase().includes('work type'));
-                    const stationIndex = headers.findIndex(h => h && h.toLowerCase().includes('station'));
-                    const timeIndex = headers.findIndex(h => h && h.toLowerCase().includes('time'));
-                    const commentsIndex = headers.findIndex(h => h && h.toLowerCase().includes('comment'));
+                    const isStandardCSV = headers && headers.length >= 4 && 
+                                         headers.some(h => h && h.toLowerCase().includes('task')) &&
+                                         headers.some(h => h && h.toLowerCase().includes('work type')) &&
+                                         headers.some(h => h && h.toLowerCase().includes('station')) &&
+                                         headers.some(h => h && h.toLowerCase().includes('time'));
 
-                    if (taskNameIndex === -1 || workTypeIndex === -1 || stationIndex === -1 || timeIndex === -1) {
-                        alert('Invalid file format. Required columns: Task Name, Work Type, Station, Time');
-                        return;
-                    }
+                    let importedTasks = [];
+                    let importedStations = new Set();
 
-                    const importedTasks = [];
-                    const importedStations = new Set();
-
-                    rows.forEach(row => {
-                        if (!row[taskNameIndex]) return;
-
-                        const taskName = row[taskNameIndex];
-                        const workType = row[workTypeIndex] || '<Select>';
-                        const station = row[stationIndex] || 'Default Station';
-                        const time = parseFloat(row[timeIndex]) || 0;
-                        const comments = commentsIndex !== -1 ? (row[commentsIndex] || '') : '';
-
-                        const workTypeDesc = `${workType} - ${taskName}`;
+                    if (isStandardCSV) {
+                        // 标准CSV格式处理
+                        const rows = jsonData.slice(1);
                         
-                        importedTasks.push({
-                            task_name: taskName,
-                            work_type_desc: workTypeDesc,
-                            work_type: workType,
-                            times: { [station]: time },
-                            total_time: time,
-                            comments: comments
-                        });
+                        const taskNameIndex = headers.findIndex(h => h && h.toLowerCase().includes('task'));
+                        const workTypeIndex = headers.findIndex(h => h && h.toLowerCase().includes('work type'));
+                        const stationIndex = headers.findIndex(h => h && h.toLowerCase().includes('station'));
+                        const timeIndex = headers.findIndex(h => h && h.toLowerCase().includes('time'));
+                        const commentsIndex = headers.findIndex(h => h && h.toLowerCase().includes('comment'));
 
-                        importedStations.add(station);
-                    });
+                        rows.forEach(row => {
+                            if (!row[taskNameIndex]) return;
+
+                            const taskName = row[taskNameIndex];
+                            const workType = row[workTypeIndex] || '<Select>';
+                            const station = row[stationIndex] || 'Default Station';
+                            const time = parseFloat(row[timeIndex]) || 0;
+                            const comments = commentsIndex !== -1 ? (row[commentsIndex] || '') : '';
+
+                            const workTypeDesc = `${workType} - ${taskName}`;
+                            
+                            importedTasks.push({
+                                task_name: taskName,
+                                work_type_desc: workTypeDesc,
+                                work_type: workType,
+                                times: { [station]: time },
+                                total_time: time,
+                                comments: comments
+                            });
+
+                            importedStations.add(station);
+                        });
+                    } else {
+                        // Excel模板格式处理
+                        // 查找数据开始行（包含"Task"的行）
+                        let dataStartRow = -1;
+                        console.log('开始查找数据表，总行数:', jsonData.length);
+                        
+                        for (let i = 0; i < jsonData.length; i++) {
+                            const row = jsonData[i];
+                            if (row && row.length > 0) {
+                                // 清理字符串并检查是否包含Task
+                                const firstCell = String(row[0]).trim();
+                                const secondCell = row.length > 1 ? String(row[1]).trim() : '';
+                                
+                                console.log(`行${i}: firstCell="${firstCell}" (原始: "${row[0]}"), secondCell="${secondCell}" (原始: "${row[1]}")`);
+                                
+                                // 主要检查第一个单元格是否为Task
+                                if (firstCell === 'Task') {
+                                    dataStartRow = i;
+                                    console.log('找到数据表开始行（Task匹配）:', i);
+                                    break;
+                                }
+                                
+                                // 如果第一个单元格包含Task，也认为是数据表开始
+                                if (firstCell.includes('Task')) {
+                                    dataStartRow = i;
+                                    console.log('找到数据表开始行（包含Task）:', i);
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (dataStartRow === -1) {
+                            console.log('未找到数据表，前10行数据:', jsonData.slice(0, 10));
+                            alert('Invalid Excel template format. Could not find data table.');
+                            return;
+                        }
+
+                        // 获取工作站列表（第7行的数据）
+                        const stationRow = jsonData[dataStartRow];
+                        const stations = stationRow.slice(2).filter(station => station && station !== '<fill in>');
+
+                        // 处理数据行
+                        for (let i = dataStartRow + 1; i < jsonData.length; i++) {
+                            const row = jsonData[i];
+                            if (!row || row.length < 3 || !row[0]) continue;
+
+                            const taskName = row[0];
+                            const workTypeDesc = row[1];
+                            const workType = row[2];
+
+                            // 智能检测时间数据的起始列
+                            let timeStartColumn = 2; // 默认从第3列开始
+                            
+                            // 检查是否有时间数据在第11列（针对缺失的任务）
+                            if (row.length > 10 && row[10] && parseFloat(row[10]) > 0) {
+                                timeStartColumn = 10;
+                            }
+                            // 检查是否有时间数据在第7列（针对其他任务）
+                            else if (row.length > 6 && row[6] && parseFloat(row[6]) > 0) {
+                                timeStartColumn = 6;
+                            }
+                            // 检查是否有时间数据在第3列（标准位置）
+                            else if (row.length > 2 && row[2] && parseFloat(row[2]) > 0) {
+                                timeStartColumn = 2;
+                            }
+                            
+                            console.log(`任务"${taskName}"的时间数据起始列: ${timeStartColumn}`);
+                            
+                            // 处理每个工作站的时间数据
+                            for (let j = 0; j < stations.length; j++) {
+                                const station = stations[j];
+                                const timeIndex = j + timeStartColumn;
+                                const time = parseFloat(row[timeIndex]) || 0;
+                                
+                                if (time > 0) {
+                                    importedTasks.push({
+                                        task_name: taskName,
+                                        work_type_desc: workTypeDesc,
+                                        work_type: workType,
+                                        times: { [station]: time },
+                                        total_time: time,
+                                        comments: ''
+                                    });
+                                    
+                                    importedStations.add(station);
+                                }
+                            }
+                        }
+                    }
 
                     if (importedTasks.length === 0) {
                         alert('No valid tasks found in the file');
@@ -1095,11 +1557,8 @@
                     if (confirm(`Found ${importedTasks.length} tasks. Do you want to import them?\n\nThis will replace all existing tasks.`)) {
                         yamazumiData.process_data = importedTasks;
                         
-                        importedStations.forEach(station => {
-                            if (!yamazumiData.stations.includes(station)) {
-                                yamazumiData.stations.push(station);
-                            }
-                        });
+                        // 更新工作站列表
+                        yamazumiData.stations = Array.from(importedStations);
 
                         updateStatistics();
                         createCharts();
@@ -1147,7 +1606,7 @@
                 });
             });
             
-            const workTypeOrder = ['VA', 'NVA', 'Waste'];
+            const workTypeOrder = ['VA', 'NNVA', 'NVA'];
             const taskDatasets = {};
             
             yamazumiData.process_data.forEach(task => {
@@ -1617,9 +2076,9 @@
                     const targetTaskLabel = window.yamazumiChartModifyInstance.data.datasets[targetDatasetIndex].label;
                     const targetTime = window.yamazumiChartModifyInstance.data.datasets[targetDatasetIndex].data[targetIndex];
 
-                    const sourceTaskName = draggedTaskInfoModify.taskName.replace(/ \(VA\)| \(NVA\)| \(Waste\)/, '');
+                    const sourceTaskName = draggedTaskInfoModify.taskName.replace(/ \(VA\)| \(NNVA\)| \(NVA\)/, '');
                     const sourceStation = draggedTaskInfoModify.originalStation;
-                    const targetTaskName = targetTaskLabel.replace(/ \(VA\)| \(NVA\)| \(Waste\)/, '');
+                    const targetTaskName = targetTaskLabel.replace(/ \(VA\)| \(NNVA\)| \(NVA\)/, '');
 
                     if (targetTime > 0 && window.yamazumiChartModifyInstance.data.datasets[targetDatasetIndex].type !== 'line') {
                         if (sourceStation === targetStationName) {
@@ -1629,7 +2088,7 @@
                         }
                     }
                 } else if (targetStation) {
-                    const sourceTaskName = draggedTaskInfoModify.taskName.replace(/ \(VA\)| \(NVA\)| \(Waste\)/, '');
+                    const sourceTaskName = draggedTaskInfoModify.taskName.replace(/ \(VA\)| \(NNVA\)| \(NVA\)/, '');
                     const sourceStation = draggedTaskInfoModify.originalStation;
 
                     if (sourceStation !== targetStation) {
@@ -1677,8 +2136,8 @@
                 const targetTime = chartData.datasets[datasetIndex].data[index];
                 
                 if (targetTime > 0 && chartData.datasets[datasetIndex].type !== 'line') {
-                    const taskName = targetTaskLabel.replace(/ \(VA\)| \(NVA\)| \(Waste\)/, '');
-                    const workType = targetTaskLabel.match(/\((VA|NVA|Waste)\)/)[1];
+                    const taskName = targetTaskLabel.replace(/ \(VA\)| \(NNVA\)| \(NVA\)/, '');
+                    const workType = targetTaskLabel.match(/\((VA|NNVA|NVA)\)/)[1];
                     
                     if (confirm(`Confirm splitting "${taskName}"?`)) {
                         const numParts = await customPrompt(`How many parts to split into?`, '2');
@@ -1752,7 +2211,7 @@
         });
 
         function moveTaskToStation(taskLabel, fromStation, toStation) {
-            const taskName = taskLabel.replace(/ \(VA\)| \(NVA\)| \(Waste\)/, '');
+            const taskName = taskLabel.replace(/ \(VA\)| \(NNVA\)| \(NVA\)/, '');
             
             const task = yamazumiData.process_data.find(t => t.task_name === taskName);
             
@@ -2034,7 +2493,7 @@
                 
                 if (targetTime > 0 && chartData.datasets[datasetIndex].type !== 'line') {
                     if (e.ctrlKey) {
-                        const taskName = targetTaskLabel.replace(/ \(VA\)| \(NVA\)| \(Waste\)/, '');
+                        const taskName = targetTaskLabel.replace(/ \(VA\)| \(NNVA\)| \(NVA\)/, '');
                         const task = yamazumiData.process_data.find(t => t.task_name === taskName && t.times[targetStation]);
                         
                         if (task) {
@@ -2127,15 +2586,15 @@
                     const targetTaskLabel = window.yamazumiChartModify2Instance.data.datasets[targetDatasetIndex].label;
                     const targetTime = window.yamazumiChartModify2Instance.data.datasets[targetDatasetIndex].data[targetIndex];
 
-                    const sourceTaskName = draggedTaskInfoModify2.taskName.replace(/ \(VA\)| \(NVA\)| \(Waste\)/, '');
+                    const sourceTaskName = draggedTaskInfoModify2.taskName.replace(/ \(VA\)| \(NNVA\)| \(NVA\)/, '');
                     const sourceStation = draggedTaskInfoModify2.originalStation;
-                    const targetTaskName = targetTaskLabel.replace(/ \(VA\)| \(NVA\)| \(Waste\)/, '');
+                    const targetTaskName = targetTaskLabel.replace(/ \(VA\)| \(NNVA\)| \(NVA\)/, '');
 
                     if (targetTime > 0 && window.yamazumiChartModify2Instance.data.datasets[targetDatasetIndex].type !== 'line') {
                         swapTasksBetweenStations(sourceTaskName, sourceStation, targetTaskName, targetStationName);
                     }
                 } else if (targetStation) {
-                    const sourceTaskName = draggedTaskInfoModify2.taskName.replace(/ \(VA\)| \(NVA\)| \(Waste\)/, '');
+                    const sourceTaskName = draggedTaskInfoModify2.taskName.replace(/ \(VA\)| \(NNVA\)| \(NVA\)/, '');
                     const sourceStation = draggedTaskInfoModify2.originalStation;
 
                     if (sourceStation !== targetStation) {
@@ -2183,8 +2642,8 @@
                 const targetTime = chartData.datasets[datasetIndex].data[index];
                 
                 if (targetTime > 0 && chartData.datasets[datasetIndex].type !== 'line') {
-                    const taskName = targetTaskLabel.replace(/ \(VA\)| \(NVA\)| \(Waste\)/, '');
-                    const workType = targetTaskLabel.match(/\((VA|NVA|Waste)\)/)[1];
+                    const taskName = targetTaskLabel.replace(/ \(VA\)| \(NNVA\)| \(NVA\)/, '');
+                    const workType = targetTaskLabel.match(/\((VA|NNVA|NVA)\)/)[1];
                     
                     if (confirm(`Confirm splitting "${taskName}"?`)) {
                         const numParts = await customPrompt(`How many parts to split into?`, '2');
@@ -2284,8 +2743,8 @@
             if (selectedStation) {
                 const stationData = {
                     "VA": 0,
-                    "NVA": 0,
-                    "Waste": 0
+                    "NNVA": 0,
+                    "NVA": 0
                 };
                 
                 yamazumiData.process_data.forEach(task => {
@@ -2793,8 +3252,8 @@
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                             <option value="">Select Work Type</option>
                             <option value="VA">VA (Value Added)</option>
+                            <option value="NNVA">NNVA (Necessary Non-Value Added)</option>
                             <option value="NVA">NVA (Non-Value Added)</option>
-                            <option value="Waste">Waste</option>
                         </select>
                     </div>
                     <div>
