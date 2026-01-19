@@ -257,20 +257,25 @@
                 </div>
             </div>
 
-            <!-- Yamazumi Chart (modify) -->
+            <!-- Work Type Distribution -->
             <div class="bg-white rounded-lg shadow-sm border">
-                <div class="px-6 py-4 border-b">
+                <div class="px-6 py-4 border-b flex justify-between items-center">
                     <h2 class="text-lg font-semibold text-gray-900">
-                        <i class="fas fa-chart-column text-blue-600 mr-2"></i>Yamazumi Chart (modify)
+                        <i class="fas fa-chart-pie text-purple-600 mr-2"></i>Work Type Distribution
                     </h2>
-                    <p class="text-sm text-gray-600 mt-1">
+                    <button id="resetStationBtn" onclick="resetStationSelection()" class="hidden px-3 py-1 bg-gray-200 text-gray-700 rounded-md text-sm hover:bg-gray-300 transition-colors">
+                        <i class="fas fa-times mr-1"></i>Reset
+                    </button>
+                </div>
+                <div id="selectedStationInfo" class="px-6 py-2 bg-blue-50 border-b hidden">
+                    <p class="text-sm text-blue-700">
                         <i class="fas fa-info-circle mr-1"></i>
-                        Click a task to select it, then click another station to move it there
+                        Showing work type distribution for: <strong id="selectedStationName"></strong>
                     </p>
                 </div>
                 <div class="p-6">
                     <div style="height: 400px;">
-                        <canvas id="yamazumiChartModify"></canvas>
+                        <canvas id="workTypeChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -299,29 +304,6 @@
                 <div class="p-6">
                     <div style="height: 400px;">
                         <canvas id="yamazumiChartModify2"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Work Type Distribution -->
-            <div class="bg-white rounded-lg shadow-sm border">
-                <div class="px-6 py-4 border-b flex justify-between items-center">
-                    <h2 class="text-lg font-semibold text-gray-900">
-                        <i class="fas fa-chart-pie text-purple-600 mr-2"></i>Work Type Distribution
-                    </h2>
-                    <button id="resetStationBtn" onclick="resetStationSelection()" class="hidden px-3 py-1 bg-gray-200 text-gray-700 rounded-md text-sm hover:bg-gray-300 transition-colors">
-                        <i class="fas fa-times mr-1"></i>Reset
-                    </button>
-                </div>
-                <div id="selectedStationInfo" class="px-6 py-2 bg-blue-50 border-b hidden">
-                    <p class="text-sm text-blue-700">
-                        <i class="fas fa-info-circle mr-1"></i>
-                        Showing work type distribution for: <strong id="selectedStationName"></strong>
-                    </p>
-                </div>
-                <div class="p-6">
-                    <div style="height: 400px;">
-                        <canvas id="workTypeChart"></canvas>
                     </div>
                 </div>
             </div>
@@ -688,12 +670,10 @@
             
             document.getElementById('ttInput').addEventListener('input', function() {
                 createYamazumiChart();
-                createYamazumiChartModify();
                 createYamazumiChartModify2();
             });
             document.getElementById('oeeInput').addEventListener('input', function() {
                 createYamazumiChart();
-                createYamazumiChartModify();
                 createYamazumiChartModify2();
             });
         }
@@ -733,8 +713,6 @@
                 
                 saveToLocalStorage();
                 updateStatistics();
-                createYamazumiChart();
-                createYamazumiChartModify();
                 createYamazumiChartModify2();
                 
                 const currentTasks = getCurrentFilteredTasks();
@@ -794,8 +772,6 @@
                 
                 saveToLocalStorage();
                 updateStatistics();
-                createYamazumiChart();
-                createYamazumiChartModify();
                 createYamazumiChartModify2();
                 updateStationSelect();
                 renderStationsList();
@@ -1581,7 +1557,6 @@
 
         function createCharts() {
             createYamazumiChart();
-            createYamazumiChartModify();
             createYamazumiChartModify2();
             createWorkTypeChart();
         }
@@ -1819,396 +1794,8 @@
             });
         }
 
-        function createYamazumiChartModify() {
-            const ctx = document.getElementById('yamazumiChartModify').getContext('2d');
-            
-            const stations = yamazumiData.stations.filter(station => yamazumiData.station_stats[station] > 0);
-            const datasets = [];
-            
-            yamazumiData.process_data.forEach(task => {
-                const data = stations.map(station => task.times[station] || 0);
-                
-                if (data.some(value => value > 0)) {
-                    datasets.push({
-                        label: `${task.task_name} (${task.work_type})`,
-                        data: data,
-                        backgroundColor: workTypeColors[task.work_type],
-                        borderColor: workTypeColors[task.work_type],
-                        borderWidth: 1
-                    });
-                }
-            });
-            
-            const ttValue = parseFloat(document.getElementById('ttInput').value) || 0;
-            const oeeValue = parseFloat(document.getElementById('oeeInput').value) || 0;
-            
-            let stationTotalTime = 0;
-            stations.forEach(station => {
-                stationTotalTime += yamazumiData.station_stats[station] || 0;
-            });
-            const averageCT = stations.length > 0 ? stationTotalTime / stations.length : 0;
-            const tctValue = ttValue * oeeValue;
-            
-            const ttData = stations.map(() => ttValue);
-            const averageCTData = stations.map(() => averageCT);
-            const tctData = stations.map(() => tctValue);
-            
-            const stationMaxValues = stations.map(station => yamazumiData.station_stats[station] || 0);
-            const maxStationValue = Math.max(...stationMaxValues);
-            const maxValue = Math.max(
-                maxStationValue,
-                ttValue,
-                averageCT,
-                tctValue
-            );
-            
-            datasets.push({
-                type: 'line',
-                label: `TT: ${ttValue.toFixed(2)}`,
-                data: ttData,
-                borderColor: '#FF6384',
-                backgroundColor: '#FF6384',
-                borderWidth: 3,
-                pointRadius: 0,
-                fill: false,
-                order: 1,
-                yAxisID: 'yLine'
-            });
-            
-            datasets.push({
-                type: 'line',
-                label: `AverageCT: ${averageCT.toFixed(2)}`,
-                data: averageCTData,
-                borderColor: '#36A2EB',
-                backgroundColor: '#36A2EB',
-                borderWidth: 3,
-                pointRadius: 0,
-                fill: false,
-                order: 2,
-                yAxisID: 'yLine'
-            });
-            
-            datasets.push({
-                type: 'line',
-                label: `TCT: ${tctValue.toFixed(2)}`,
-                data: tctData,
-                borderColor: '#FFCE56',
-                backgroundColor: '#FFCE56',
-                borderWidth: 3,
-                pointRadius: 0,
-                fill: false,
-                order: 3,
-                yAxisID: 'yLine'
-            });
-            
-            if (window.yamazumiChartModifyInstance) {
-                window.yamazumiChartModifyInstance.destroy();
-            }
-            
-            Chart.register(ChartDataLabels);
-            
-            window.yamazumiChartModifyInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: stations,
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    onClick: (event, elements) => {
-                    },
-                    onHover: (event, elements) => {
-                        event.native.target.style.cursor = elements.length > 0 ? 'grab' : 'default';
-                    },
-                    scales: {
-                        x: {
-                            stacked: true,
-                            title: {
-                                display: true,
-                                text: 'Stations'
-                            }
-                        },
-                        y: {
-                            stacked: true,
-                            title: {
-                                display: true,
-                                text: 'Time (seconds)'
-                            },
-                            min: 0,
-                            max: maxValue
-                        },
-                        yLine: {
-                            type: 'linear',
-                            display: false,
-                            stacked: false,
-                            position: 'left',
-                            grid: {
-                                drawOnChartArea: false
-                            },
-                            min: 0,
-                            max: maxValue
-                        }
-                    },
-                    plugins: {
-                        datalabels: {
-                            color: 'white',
-                            font: {
-                                weight: 'bold',
-                                size: 10
-                            },
-                            anchor: 'center',
-                            align: 'center',
-                            formatter: function(value, context) {
-                                if (value > 0 && context.dataset.type !== 'line') {
-                                    return value + 's';
-                                }
-                                return '';
-                            }
-                        },
-                        title: {
-                            display: true,
-                            text: 'Yamazumi Chart (modify) - Drag task to swap or move to station'
-                        },
-                        legend: {
-                            display: true,
-                            position: 'top'
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const station = context.label;
-                                    const taskName = context.dataset.label;
-                                    const time = context.raw;
-                                    
-                                    let result = [];
-                                    
-                                    result.push(`${station} - ${taskName}: ${time}s`);
-                                    result.push('Drag to swap or move to another station');
-                                    
-                                    return result;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
 
-        const canvasModify = document.getElementById('yamazumiChartModify');
-        let isDraggingModify = false;
-        let dragStartXModify = 0;
-        let dragStartYModify = 0;
-        let draggedTaskInfoModify = null;
 
-        canvasModify.addEventListener('mousedown', function(e) {
-            if (e.button === 2) {
-                return;
-            }
-            
-            const rect = canvasModify.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            
-            const elements = window.yamazumiChartModifyInstance.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
-            
-            if (elements.length > 0) {
-                const point = elements[0];
-                const datasetIndex = point.datasetIndex;
-                const index = point.index;
-                
-                const chartData = window.yamazumiChartModifyInstance.data;
-                const targetStation = chartData.labels[index];
-                const targetTaskLabel = chartData.datasets[datasetIndex].label;
-                const targetTime = chartData.datasets[datasetIndex].data[index];
-                
-                if (targetTime > 0 && chartData.datasets[datasetIndex].type !== 'line') {
-                    isDraggingModify = true;
-                    dragStartXModify = x;
-                    dragStartYModify = y;
-                    draggedTaskInfoModify = {
-                        taskName: targetTaskLabel,
-                        originalStation: targetStation,
-                        time: targetTime
-                    };
-                    canvasModify.style.cursor = 'grabbing';
-                }
-            }
-        });
-
-        canvasModify.addEventListener('mousemove', function(e) {
-            if (isDraggingModify) {
-                canvasModify.style.cursor = 'grabbing';
-            }
-        });
-
-        canvasModify.addEventListener('mouseup', function(e) {
-            if (e.button === 2) {
-                return;
-            }
-            
-            if (!isDraggingModify || !draggedTaskInfoModify) {
-                isDraggingModify = false;
-                draggedTaskInfoModify = null;
-                canvasModify.style.cursor = 'default';
-                return;
-            }
-
-            const rect = canvasModify.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-
-            const chartArea = window.yamazumiChartModifyInstance.chartArea;
-            const xAxis = window.yamazumiChartModifyInstance.scales.x;
-
-            if (y >= chartArea.top && y <= chartArea.bottom) {
-                const stationIndex = xAxis.getValueForPixel(x);
-                const targetStation = window.yamazumiChartModifyInstance.data.labels[Math.round(stationIndex)];
-
-                const elements = window.yamazumiChartModifyInstance.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
-
-                if (elements.length > 0) {
-                    const point = elements[0];
-                    const targetDatasetIndex = point.datasetIndex;
-                    const targetIndex = point.index;
-
-                    const targetStationName = window.yamazumiChartModifyInstance.data.labels[targetIndex];
-                    const targetTaskLabel = window.yamazumiChartModifyInstance.data.datasets[targetDatasetIndex].label;
-                    const targetTime = window.yamazumiChartModifyInstance.data.datasets[targetDatasetIndex].data[targetIndex];
-
-                    const sourceTaskName = draggedTaskInfoModify.taskName.replace(/ \(VA\)| \(NNVA\)| \(NVA\)/, '');
-                    const sourceStation = draggedTaskInfoModify.originalStation;
-                    const targetTaskName = targetTaskLabel.replace(/ \(VA\)| \(NNVA\)| \(NVA\)/, '');
-
-                    if (targetTime > 0 && window.yamazumiChartModifyInstance.data.datasets[targetDatasetIndex].type !== 'line') {
-                        if (sourceStation === targetStationName) {
-                            alert('Cannot swap tasks within same station');
-                        } else {
-                            swapTasksBetweenStations(sourceTaskName, sourceStation, targetTaskName, targetStationName);
-                        }
-                    }
-                } else if (targetStation) {
-                    const sourceTaskName = draggedTaskInfoModify.taskName.replace(/ \(VA\)| \(NNVA\)| \(NVA\)/, '');
-                    const sourceStation = draggedTaskInfoModify.originalStation;
-
-                    if (sourceStation !== targetStation) {
-                        moveTaskToStation(
-                            draggedTaskInfoModify.taskName,
-                            sourceStation,
-                            targetStation
-                        );
-                    } else {
-                        alert('Cannot move task to the same station');
-                    }
-                }
-            }
-
-            isDraggingModify = false;
-            draggedTaskInfoModify = null;
-            canvasModify.style.cursor = 'default';
-        });
-
-        canvasModify.addEventListener('mouseleave', function() {
-            if (isDraggingModify) {
-                isDraggingModify = false;
-                draggedTaskInfoModify = null;
-                canvasModify.style.cursor = 'default';
-            }
-        });
-
-        canvasModify.addEventListener('contextmenu', async function(e) {
-            e.preventDefault();
-            
-            isDraggingModify = false;
-            draggedTaskInfoModify = null;
-            canvasModify.style.cursor = 'default';
-            
-            const elements = window.yamazumiChartModifyInstance.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true);
-            
-            if (elements.length > 0) {
-                const point = elements[0];
-                const datasetIndex = point.datasetIndex;
-                const index = point.index;
-                
-                const chartData = window.yamazumiChartModifyInstance.data;
-                const targetStation = chartData.labels[index];
-                const targetTaskLabel = chartData.datasets[datasetIndex].label;
-                const targetTime = chartData.datasets[datasetIndex].data[index];
-                
-                if (targetTime > 0 && chartData.datasets[datasetIndex].type !== 'line') {
-                    const taskName = targetTaskLabel.replace(/ \(VA\)| \(NNVA\)| \(NVA\)/, '');
-                    const workType = targetTaskLabel.match(/\((VA|NNVA|NVA)\)/)[1];
-                    
-                    if (confirm(`Confirm splitting "${taskName}"?`)) {
-                        const numParts = await customPrompt(`How many parts to split into?`, '2');
-                        
-                        if (numParts && !isNaN(numParts) && parseInt(numParts) > 1) {
-                            const parts = parseInt(numParts);
-                            const newTasks = [];
-                            let totalNewTime = 0;
-                            
-                            for (let i = 1; i <= parts; i++) {
-                                const newTaskName = `${taskName}.${i}`;
-                                const timeInput = await customPrompt(`Enter time for "${newTaskName}" (Total: ${targetTime}s, Remaining: ${targetTime - totalNewTime}s)`, '');
-                                
-                                if (timeInput === null) {
-                                    return;
-                                }
-                                
-                                const time = parseFloat(timeInput);
-                                
-                                if (isNaN(time) || time <= 0) {
-                                    alert('Please enter a valid positive number for time.');
-                                    return;
-                                }
-                                
-                                totalNewTime += time;
-                                newTasks.push({
-                                    name: newTaskName,
-                                    time: time
-                                });
-                            }
-                            
-                            if (Math.abs(totalNewTime - targetTime) > 0.01) {
-                                alert(`Time mismatch! Original: ${targetTime}s, Total of new tasks: ${totalNewTime}s. Please try again.`);
-                                return;
-                            }
-                            
-                            const originalTask = yamazumiData.process_data.find(t => t.task_name === taskName);
-                            
-                            if (originalTask) {
-                                yamazumiData.process_data = yamazumiData.process_data.filter(t => t.task_name !== taskName);
-                                
-                                newTasks.forEach(newTask => {
-                                    const newTaskData = {
-                                        task_name: newTask.name,
-                                        work_type_desc: `${workType} - ${newTask.name}`,
-                                        work_type: workType,
-                                        times: {},
-                                        total_time: newTask.time,
-                                        comments: originalTask.comments || ''
-                                    };
-                                    newTaskData.times[targetStation] = newTask.time;
-                                    yamazumiData.process_data.push(newTaskData);
-                                });
-                                
-                                saveToLocalStorage();
-                                updateStatistics();
-                                createYamazumiChart();
-                                createYamazumiChartModify();
-                                createYamazumiChartModify2();
-                                renderTasksTable(yamazumiData.process_data);
-                                renderStationsList();
-                                
-                                alert(`Task "${taskName}" has been split into ${parts} parts successfully!`);
-                            }
-                        } else if (numParts !== null) {
-                            alert('Please enter a valid number greater than 1.');
-                        }
-                    }
-                }
-            }
-        });
 
         function moveTaskToStation(taskLabel, fromStation, toStation) {
             const taskName = taskLabel.replace(/ \(VA\)| \(NNVA\)| \(NVA\)/, '');
@@ -2222,8 +1809,6 @@
                 
                 saveToLocalStorage();
                 updateStatistics();
-                createYamazumiChart();
-                createYamazumiChartModify();
                 createYamazumiChartModify2();
                 renderTasksTable(yamazumiData.process_data);
                 renderStationsList();
@@ -2271,8 +1856,6 @@
                 
                 saveToLocalStorage();
                 updateStatistics();
-                createYamazumiChart();
-                createYamazumiChartModify();
                 createYamazumiChartModify2();
                 renderTasksTable(yamazumiData.process_data);
                 renderStationsList();
@@ -2700,8 +2283,6 @@
                                 
                                 saveToLocalStorage();
                                 updateStatistics();
-                                createYamazumiChart();
-                                createYamazumiChartModify();
                                 createYamazumiChartModify2();
                                 renderTasksTable(yamazumiData.process_data);
                                 renderStationsList();
