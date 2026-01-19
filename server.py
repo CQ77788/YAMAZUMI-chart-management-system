@@ -3,7 +3,7 @@ from flask_cors import CORS
 import json
 import os
 import re
-from database import init_db, create_user, verify_user, get_user_by_id, change_password, create_factory, get_factories, get_factory, update_factory, delete_factory, create_process_section, get_process_sections, get_process_section, update_process_section, delete_process_section, get_db_connection
+from database import init_db, create_user, verify_user, get_user_by_id, change_password, create_factory, get_factories, get_factory, update_factory, delete_factory, create_process_section, get_process_sections, get_process_section, update_process_section, delete_process_section, get_db_connection, get_all_users, update_user_role, delete_user, is_admin, update_user_info, reset_user_password, get_user_by_id_for_admin
 import secrets
 
 app = Flask(__name__)
@@ -565,6 +565,142 @@ def api_load_all_data():
     try:
         allFactoriesData = load_all_factory_data_from_db(session['user_id'])
         return jsonify({'success': True, 'data': allFactoriesData})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/users', methods=['GET'])
+def api_get_all_users():
+    """获取所有用户（仅管理员可用）"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+    
+    if not is_admin(session['user_id']):
+        return jsonify({'success': False, 'message': 'Access denied. Admin privileges required.'}), 403
+    
+    try:
+        users = get_all_users()
+        return jsonify({'success': True, 'users': users})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/users/<int:user_id>/role', methods=['PUT'])
+def api_update_user_role(user_id):
+    """更新用户角色（仅管理员可用）"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+    
+    if not is_admin(session['user_id']):
+        return jsonify({'success': False, 'message': 'Access denied. Admin privileges required.'}), 403
+    
+    data = request.json
+    new_role = data.get('role')
+    
+    if not new_role or new_role not in ['user', 'admin']:
+        return jsonify({'success': False, 'message': 'Valid role is required (user or admin)'}), 400
+    
+    try:
+        update_user_role(user_id, new_role)
+        return jsonify({'success': True, 'message': 'User role updated successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/users/<int:user_id>', methods=['DELETE'])
+def api_delete_user(user_id):
+    """删除用户（仅管理员可用）"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+    
+    if not is_admin(session['user_id']):
+        return jsonify({'success': False, 'message': 'Access denied. Admin privileges required.'}), 403
+    
+    if user_id == session['user_id']:
+        return jsonify({'success': False, 'message': 'Cannot delete your own account'}), 400
+    
+    try:
+        delete_user(user_id)
+        return jsonify({'success': True, 'message': 'User deleted successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/is-admin', methods=['GET'])
+def api_check_admin():
+    """检查当前用户是否为管理员"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+    
+    try:
+        admin_status = is_admin(session['user_id'])
+        return jsonify({'success': True, 'is_admin': admin_status})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/users/<int:user_id>', methods=['GET'])
+def api_get_user(user_id):
+    """获取指定用户信息（仅管理员可用）"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+    
+    if not is_admin(session['user_id']):
+        return jsonify({'success': False, 'message': 'Access denied. Admin privileges required.'}), 403
+    
+    try:
+        user = get_user_by_id_for_admin(session['user_id'], user_id)
+        if user:
+            return jsonify({'success': True, 'user': user})
+        else:
+            return jsonify({'success': False, 'message': 'User not found'}), 404
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/users/<int:user_id>/info', methods=['PUT'])
+def api_update_user_info(user_id):
+    """更新用户信息（仅管理员可用）"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+    
+    if not is_admin(session['user_id']):
+        return jsonify({'success': False, 'message': 'Access denied. Admin privileges required.'}), 403
+    
+    data = request.json
+    username = data.get('username')
+    email = data.get('email')
+    
+    if not username and email is None:
+        return jsonify({'success': False, 'message': 'No data to update'}), 400
+    
+    try:
+        success = update_user_info(user_id, username, email)
+        if success:
+            return jsonify({'success': True, 'message': 'User info updated successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'Username already exists or update failed'}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+@app.route('/api/users/<int:user_id>/password', methods=['PUT'])
+def api_reset_user_password(user_id):
+    """重置用户密码（仅管理员可用）"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Not authenticated'}), 401
+    
+    if not is_admin(session['user_id']):
+        return jsonify({'success': False, 'message': 'Access denied. Admin privileges required.'}), 403
+    
+    data = request.json
+    new_password = data.get('new_password')
+    
+    if not new_password:
+        return jsonify({'success': False, 'message': 'New password is required'}), 400
+    
+    if len(new_password) < 6:
+        return jsonify({'success': False, 'message': 'Password must be at least 6 characters long'}), 400
+    
+    try:
+        success = reset_user_password(user_id, new_password)
+        if success:
+            return jsonify({'success': True, 'message': 'Password reset successfully'})
+        else:
+            return jsonify({'success': False, 'message': 'Failed to reset password'}), 400
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 

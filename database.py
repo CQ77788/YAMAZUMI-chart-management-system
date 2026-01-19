@@ -17,6 +17,7 @@ def init_db():
             username TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
             email TEXT,
+            role TEXT DEFAULT 'user',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -60,15 +61,15 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-def create_user(username, password, email=None):
+def create_user(username, password, email=None, role='user'):
     conn = get_db_connection()
     cursor = conn.cursor()
     
     try:
         password_hash = hash_password(password)
         cursor.execute(
-            'INSERT INTO users (username, password_hash, email) VALUES (?, ?, ?)',
-            (username, password_hash, email)
+            'INSERT INTO users (username, password_hash, email, role) VALUES (?, ?, ?, ?)',
+            (username, password_hash, email, role)
         )
         conn.commit()
         return cursor.lastrowid
@@ -83,7 +84,7 @@ def verify_user(username, password):
     
     password_hash = hash_password(password)
     cursor.execute(
-        'SELECT id, username, email FROM users WHERE username = ? AND password_hash = ?',
+        'SELECT id, username, email, role FROM users WHERE username = ? AND password_hash = ?',
         (username, password_hash)
     )
     user = cursor.fetchone()
@@ -95,7 +96,7 @@ def get_user_by_id(user_id):
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    cursor.execute('SELECT id, username, email FROM users WHERE id = ?', (user_id,))
+    cursor.execute('SELECT id, username, email, role FROM users WHERE id = ?', (user_id,))
     user = cursor.fetchone()
     conn.close()
     
@@ -125,6 +126,98 @@ def change_password(user_id, old_password, new_password):
     conn.close()
     
     return True
+
+def get_all_users():
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT id, username, email, role, created_at FROM users ORDER BY created_at DESC')
+    users = cursor.fetchall()
+    conn.close()
+    
+    return [dict(user) for user in users]
+
+def update_user_role(user_id, new_role):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute(
+        'UPDATE users SET role = ? WHERE id = ?',
+        (new_role, user_id)
+    )
+    conn.commit()
+    conn.close()
+    
+    return True
+
+def delete_user(user_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('DELETE FROM users WHERE id = ?', (user_id,))
+    conn.commit()
+    conn.close()
+    
+    return True
+
+def is_admin(user_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT role FROM users WHERE id = ?', (user_id,))
+    user = cursor.fetchone()
+    conn.close()
+    
+    return user and user['role'] == 'admin' if user else False
+
+def update_user_info(user_id, username=None, email=None):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        if username:
+            cursor.execute('UPDATE users SET username = ? WHERE id = ?', (username, user_id))
+        if email is not None:  # 允许空邮箱
+            cursor.execute('UPDATE users SET email = ? WHERE id = ?', (email, user_id))
+        
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        return False  # 用户名已存在
+    except Exception as e:
+        print(f"Error updating user info: {e}")
+        return False
+    finally:
+        conn.close()
+
+def reset_user_password(user_id, new_password):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        password_hash = hash_password(new_password)
+        cursor.execute('UPDATE users SET password_hash = ? WHERE id = ?', (password_hash, user_id))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error resetting user password: {e}")
+        return False
+    finally:
+        conn.close()
+
+def get_user_by_id_for_admin(admin_user_id, target_user_id):
+    """管理员获取其他用户信息"""
+    if not is_admin(admin_user_id):
+        return None
+    
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT id, username, email, role, created_at FROM users WHERE id = ?', (target_user_id,))
+    user = cursor.fetchone()
+    conn.close()
+    
+    return dict(user) if user else None
 
 def create_factory(user_id, name):
     conn = get_db_connection()
