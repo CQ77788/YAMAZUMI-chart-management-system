@@ -788,6 +788,8 @@
                             <option value="21-30">21-30s</option>
                             <option value="31+">31s+</option>
                         </select>
+                        <input type="text" id="filterComments" placeholder="Filter Comments..."
+                               class="px-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                         <button id="clearFilters" class="px-3 py-1 bg-gray-200 text-gray-700 rounded-md text-sm hover:bg-gray-300">
                             Clear All
                         </button>
@@ -1072,6 +1074,7 @@
             document.getElementById('filterWorkType').addEventListener('change', filterTasks);
             document.getElementById('filterStation').addEventListener('change', filterTasks);
             document.getElementById('filterTime').addEventListener('change', filterTasks);
+            document.getElementById('filterComments').addEventListener('input', filterTasks);
             document.getElementById('clearFilters').addEventListener('click', clearAllFilters);
             
             document.getElementById('backBtn').addEventListener('click', function() {
@@ -1210,6 +1213,7 @@
             const workTypeFilter = document.getElementById('filterWorkType').value;
             const stationFilter = document.getElementById('filterStation').value;
             const timeFilter = document.getElementById('filterTime').value;
+            const commentsFilter = document.getElementById('filterComments').value.toLowerCase();
             
             return yamazumiData.process_data.filter(task => {
                 const firstStation = Object.keys(task.times)[0] || '';
@@ -1218,6 +1222,7 @@
                 const matchesTaskName = taskNameFilter === '' || task.task_name.toLowerCase().includes(taskNameFilter);
                 const matchesWorkType = workTypeFilter === '' || task.work_type === workTypeFilter;
                 const matchesStation = stationFilter === '' || firstStation === stationFilter;
+                const matchesComments = commentsFilter === '' || (task.comments && task.comments.toLowerCase().includes(commentsFilter));
                 
                 let matchesTime = true;
                 if (timeFilter !== '') {
@@ -1232,7 +1237,7 @@
                     }
                 }
                 
-                return matchesTaskName && matchesWorkType && matchesStation && matchesTime;
+                return matchesTaskName && matchesWorkType && matchesStation && matchesTime && matchesComments;
             });
         }
 
@@ -1304,6 +1309,7 @@
             document.getElementById('filterWorkType').value = '';
             document.getElementById('filterStation').value = '';
             document.getElementById('filterTime').value = '';
+            document.getElementById('filterComments').value = '';
             filterTasks();
         }
 
